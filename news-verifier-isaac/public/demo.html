@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FactCheck AI - 뉴스 검증 시스템 (데모)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ffff, #ff006e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            margin-bottom: 30px;
+        }
+
+        .search-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #00ffff, #0099cc);
+            border: none;
+            border-radius: 15px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .results {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: none;
+        }
+
+        .score-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .score-high { background: linear-gradient(45deg, #00ff88, #00cc66); }
+        .score-medium { background: linear-gradient(45deg, #ffaa00, #ff8800); }
+        .score-low { background: linear-gradient(45deg, #ff006e, #cc0055); }
+
+        .source-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #00ffff;
+        }
+
+        .source-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .source-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .credibility-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .credibility-high { background: #00ff88; color: #000; }
+        .credibility-medium { background: #ffaa00; color: #000; }
+        .credibility-low { background: #ff006e; color: #fff; }
+
+        .demo-notice {
+            background: rgba(255, 255, 0, 0.2);
+            border: 1px solid rgba(255, 255, 0, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <i class="fas fa-shield-alt"></i>
+                FactCheck AI
+            </div>
+            <div class="subtitle">AI 기반 뉴스 신뢰도 검증 시스템</div>
+        </div>
+
+        <div class="search-section">
+            <div class="demo-notice">
+                <i class="fas fa-info-circle"></i>
+                <strong>데모 버전</strong> - 실제 API 연결 없이 작동하는 시연용 버전입니다.
+            </div>
+            
+            <div class="search-box">
+                <input type="text" class="search-input" placeholder="검증하고 싶은 뉴스나 사건을 입력하세요..." id="searchInput">
+                <button class="search-btn" onclick="runDemo()" id="searchBtn">
+                    <i class="fas fa-search"></i>
+                    검증하기
+                </button>
+            </div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="score-section">
+                <div class="score-circle score-high" id="scoreCircle">
+                    <span id="scoreValue">85</span>%
+                </div>
+                <div id="scoreDescription">높은 신뢰도 - 신뢰할 수 있는 정보입니다</div>
+            </div>
+
+            <div id="sourcesList">
+                <!-- 검색 결과가 여기에 표시됩니다 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function runDemo() {
+            const query = document.getElementById('searchInput').value.trim();
+            
+            if (!query) {
+                alert('검증할 내용을 입력해주세요.');
+                return;
+            }
+
+            console.log('🔍 데모 검색 시작:', query);
+
+            // 데모 데이터 생성
+            const demoData = {
+                credibilityScore: Math.floor(Math.random() * 40) + 60, // 60-100 사이
+                sources: [
+                    {
+                        title: `"${query}" 관련 뉴스 - 연합뉴스`,
+                        url: "https://yna.co.kr/example1",
+                        domain: "yna.co.kr",
+                        publishedDate: new Date().toISOString().split('T')[0],
+                        credibility: "High",
+                        description: "신뢰할 수 있는 출처에서 확인된 정보입니다."
+                    },
+                    {
+                        title: `"${query}" 사실 확인 - KBS 뉴스`,
+                        url: "https://kbs.co.kr/example2",
+                        domain: "kbs.co.kr",
+                        publishedDate: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+                        credibility: "High",
+                        description: "공영방송에서 보도한 검증된 내용입니다."
+                    },
+                    {
+                        title: `"${query}" 관련 보도 - 네이버 뉴스`,
+                        url: "https://news.naver.com/example3",
+                        domain: "news.naver.com",
+                        publishedDate: new Date(Date.now() - 172800000).toISOString().split('T')[0],
+                        credibility: "Medium",
+                        description: "포털 사이트에서 수집된 뉴스입니다."
+                    }
+                ]
+            };
+
+            displayDemoResults(demoData);
+        }
+
+        function displayDemoResults(data) {
+            console.log('📊 데모 결과 표시:', data);
+
+            // 신뢰도 점수 표시
+            const scoreValue = document.getElementById('scoreValue');
+            const scoreCircle = document.getElementById('scoreCircle');
+            const scoreDescription = document.getElementById('scoreDescription');
+
+            scoreValue.textContent = data.credibilityScore;
+
+            if (data.credibilityScore >= 70) {
+                scoreCircle.className = 'score-circle score-high';
+                scoreDescription.textContent = '높은 신뢰도 - 신뢰할 수 있는 정보입니다';
+            } else if (data.credibilityScore >= 40) {
+                scoreCircle.className = 'score-circle score-medium';
+                scoreDescription.textContent = '보통 신뢰도 - 추가 확인이 필요합니다';
+            } else {
+                scoreCircle.className = 'score-circle score-low';
+                scoreDescription.textContent = '낮은 신뢰도 - 주의가 필요합니다';
+            }
+
+            // 출처 목록 표시
+            const sourcesList = document.getElementById('sourcesList');
+            sourcesList.innerHTML = '';
+
+            data.sources.forEach(source => {
+                const sourceCard = document.createElement('div');
+                sourceCard.className = 'source-card';
+
+                const credibilityClass = source.credibility.toLowerCase() === 'high' ? 'credibility-high' : 
+                                       source.credibility.toLowerCase() === 'medium' ? 'credibility-medium' : 'credibility-low';
+
+                sourceCard.innerHTML = `
+                    <div class="source-title">${source.title}</div>
+                    <div class="source-description" style="margin: 10px 0; opacity: 0.8;">${source.description}</div>
+                    <div class="source-meta">
+                        <span><i class="fas fa-globe"></i> ${source.domain}</span>
+                        <span><i class="fas fa-calendar"></i> ${source.publishedDate}</span>
+                        <span class="credibility-badge ${credibilityClass}">${source.credibility}</span>
+                    </div>
+                `;
+                sourcesList.appendChild(sourceCard);
+            });
+
+            // 결과 표시
+            document.getElementById('results').style.display = 'block';
+            
+            // 결과로 스크롤
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+
+            console.log('✅ 데모 결과 표시 완료');
+        }
+
+        // Enter 키로 검색
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                runDemo();
+            }
+        });
+
+        console.log('🎉 데모 페이지 로드 완료');
+    </script>
+</body>
+</html>

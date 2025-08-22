@@ -1,0 +1,30 @@
+# 환경 변수 및 API 키
+.env
+.env.*
+*.key
+*.pem
+mcp-config.json
+
+# 로그 파일
+*.log
+logs/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 운영체제
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 임시 파일
+*.tmp
+*.temp

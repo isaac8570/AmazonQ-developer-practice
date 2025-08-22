@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FactCheck AI - 뉴스 검증 시스템</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ffff, #ff006e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            margin-bottom: 30px;
+        }
+
+        .search-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #00ffff, #0099cc);
+            border: none;
+            border-radius: 15px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #00ffff;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: none;
+        }
+
+        .score-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .score-high { background: linear-gradient(45deg, #00ff88, #00cc66); }
+        .score-medium { background: linear-gradient(45deg, #ffaa00, #ff8800); }
+        .score-low { background: linear-gradient(45deg, #ff006e, #cc0055); }
+
+        .source-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #00ffff;
+        }
+
+        .source-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .source-description {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+
+        .source-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 14px;
+            opacity: 0.8;
+            flex-wrap: wrap;
+        }
+
+        .source-link {
+            color: #00ffff;
+            text-decoration: none;
+        }
+
+        .credibility-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .credibility-high { background: #00ff88; color: #000; }
+        .credibility-medium { background: #ffaa00; color: #000; }
+        .title-match-score {
+            background: rgba(0, 255, 255, 0.2);
+            color: #00ffff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .matched-keywords {
+            background: rgba(255, 255, 0, 0.2);
+            color: #ffff00;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 11px;
+            margin: 2px;
+            display: inline-block;
+        }
+        
+        .filter-stats {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .filter-stats h4 {
+            color: #00ffff;
+            margin-bottom: 10px;
+        }
+
+        .error-section {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .error-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .error-details {
+            opacity: 0.8;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <i class="fas fa-shield-alt"></i>
+                FactCheck AI
+            </div>
+            <div class="subtitle">AI 기반 뉴스 신뢰도 검증 시스템</div>
+        </div>
+
+        <div class="search-section">
+            <div class="search-box">
+                <input type="text" class="search-input" placeholder="검증하고 싶은 뉴스나 사건을 입력하세요..." id="searchInput">
+                <button class="search-btn" onclick="verifyNews()" id="searchBtn">
+                    <i class="fas fa-search"></i>
+                    검증하기
+                </button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>뉴스를 검증하고 있습니다...</div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="score-section">
+                <div class="score-circle" id="scoreCircle">
+                    <span id="scoreValue">0</span>%
+                </div>
+                <div id="scoreDescription">검증 결과</div>
+            </div>
+
+            <div id="sourcesList">
+                <!-- 검색 결과가 여기에 표시됩니다 -->
+            </div>
+
+            <div id="analysisContent">
+                <!-- 분석 결과가 여기에 표시됩니다 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('🚀 FactCheck AI 로드됨');
+
+        async function verifyNews() {
+            console.log('🔍 verifyNews 함수 호출됨');
+            
+            const searchInput = document.getElementById('searchInput');
+            const query = searchInput.value.trim();
+            
+            console.log('📝 입력된 쿼리:', query);
+            
+            if (!query) {
+                alert('검증할 내용을 입력해주세요.');
+                return;
+            }
+            
+            // UI 상태 변경
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('searchBtn').disabled = true;
+            
+            try {
+                console.log('📡 서버에 요청 전송 중...');
+                
+                const response = await fetch('/api/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+                
+                console.log('📡 서버 응답 상태:', response.status);
+                
+                const data = await response.json();
+                console.log('📦 받은 데이터:', data);
+                
+                if (!response.ok) {
+                    console.error('❌ 서버 에러:', data);
+                    displayError(data);
+                    return;
+                }
+                
+                displayResults(data);
+                
+            } catch (error) {
+                console.error('❌ 네트워크 오류:', error);
+                displayError({
+                    error: 'Network Error',
+                    message: '서버에 연결할 수 없습니다.',
+                    details: '서버가 실행 중인지 확인해주세요.'
+                });
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('searchBtn').disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            console.log('📊 결과 표시 중:', data);
+            
+            // 신뢰도 점수 표시
+            const scoreValue = document.getElementById('scoreValue');
+            const scoreCircle = document.getElementById('scoreCircle');
+            const scoreDescription = document.getElementById('scoreDescription');
+            
+            scoreValue.textContent = data.credibilityScore || 0;
+            
+            if (data.credibilityScore >= 70) {
+                scoreCircle.className = 'score-circle score-high';
+                scoreDescription.textContent = '높은 신뢰도 - 신뢰할 수 있는 정보입니다';
+            } else if (data.credibilityScore >= 40) {
+                scoreCircle.className = 'score-circle score-medium';
+                scoreDescription.textContent = '보통 신뢰도 - 추가 확인이 필요합니다';
+            } else {
+                scoreCircle.className = 'score-circle score-low';
+                scoreDescription.textContent = '낮은 신뢰도 - 주의가 필요합니다';
+            }
+            
+            // 출처 목록 표시
+            const sourcesList = document.getElementById('sourcesList');
+            sourcesList.innerHTML = '';
+            
+            if (!data.sources || data.sources.length === 0) {
+                sourcesList.innerHTML = '<div style="text-align: center; padding: 20px;">검색 결과가 없습니다.</div>';
+                console.log('⚠️ 검색 결과 없음');
+            } else {
+                console.log(`📰 ${data.sources.length}개 뉴스 표시 중...`);
+                
+                data.sources.forEach((source, index) => {
+                    const sourceCard = document.createElement('div');
+                    sourceCard.className = 'source-card';
+                    
+                    const credibilityClass = source.credibility && source.credibility.toLowerCase() === 'high' ? 'credibility-high' : 
+                                           source.credibility && source.credibility.toLowerCase() === 'medium' ? 'credibility-medium' : 'credibility-low';
+                    
+                    // 제목 매칭 점수 표시
+                    const titleMatchScore = source.titleMatchScore ? 
+                        `<span class="title-match-score">제목매칭: ${source.titleMatchScore}</span>` : '';
+                    
+                    // 매칭된 키워드 표시
+                    const matchedKeywords = source.matchedKeywords && source.matchedKeywords.length > 0 ? 
+                        `<div style="margin-top: 8px;">
+                            <strong>매칭 키워드:</strong> 
+                            ${source.matchedKeywords.map(keyword => `<span class="matched-keywords">${keyword}</span>`).join('')}
+                        </div>` : '';
+                    
+                    sourceCard.innerHTML = `
+                        <div class="source-title">${source.title || 'No title'}</div>
+                        <div class="source-description">${source.description || ''}</div>
+                        ${matchedKeywords}
+                        <div class="source-meta">
+                            <a href="${source.url}" target="_blank" class="source-link">
+                                <i class="fas fa-external-link-alt"></i> ${source.domain || 'unknown'}
+                            </a>
+                            <span><i class="fas fa-calendar"></i> ${source.publishedDate || 'Unknown date'}</span>
+                            <span class="credibility-badge ${credibilityClass}">${source.credibility || 'Unknown'}</span>
+                            ${titleMatchScore}
+                        </div>
+                    `;
+                    sourcesList.appendChild(sourceCard);
+                });
+            }
+            
+            // 제목 필터링 통계 표시
+            if (data.titleFilterStats) {
+                const filterInfo = document.createElement('div');
+                filterInfo.className = 'filter-stats';
+                filterInfo.innerHTML = `
+                    <h4>🎯 제목 기반 필터링 결과</h4>
+                    <p><strong>원본 검색 결과:</strong> ${data.titleFilterStats.originalCount}개</p>
+                    <p><strong>제목 매칭 결과:</strong> ${data.titleFilterStats.filteredCount}개</p>
+                    <p><strong>필터링 비율:</strong> ${data.titleFilterStats.filterRate}% 제외</p>
+                    <p><strong>핵심 키워드:</strong> ${data.titleFilterStats.keywords.essential?.join(', ') || '없음'}</p>
+                    <p style="font-size: 12px; opacity: 0.8; margin-top: 8px;">${data.titleFilterStats.message}</p>
+                `;
+                
+                // 결과 상단에 추가
+                const resultsDiv = document.getElementById('results');
+                const existingFilter = resultsDiv.querySelector('.filter-stats');
+                if (existingFilter) {
+                    existingFilter.remove();
+                }
+                resultsDiv.insertBefore(filterInfo, resultsDiv.firstChild);
+            }
+            if (data.analysis) {
+                analysisContent.innerHTML = `
+                    <div style="margin-top: 20px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 10px;">
+                        <h3>상세 분석</h3>
+                        <p><strong>검증 상태:</strong> ${data.analysis.verificationStatus || 'Unknown'}</p>
+                        <p><strong>종합 의견:</strong> ${data.analysis.consensus || 'No consensus'}</p>
+                        <p><strong>상충 정보:</strong> ${data.analysis.conflictingInfo ? '발견됨' : '없음'}</p>
+                    </div>
+                `;
+            }
+            
+            // 결과 표시
+            document.getElementById('results').style.display = 'block';
+            console.log('✅ 결과 표시 완료');
+        }
+
+        function displayError(errorData) {
+            console.log('❌ 에러 표시:', errorData);
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="error-section">
+                    <div class="error-icon">⚠️</div>
+                    <div class="error-title">${errorData.message || '검색 실패'}</div>
+                    <div class="error-details">${errorData.details || errorData.error || '알 수 없는 오류가 발생했습니다.'}</div>
+                </div>
+            `;
+            resultsDiv.style.display = 'block';
+        }
+
+        // Enter 키로 검색
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                console.log('⌨️ Enter 키 눌림');
+                verifyNews();
+            }
+        });
+
+        // 페이지 로드 완료
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 DOM 로드 완료');
+        });
+
+        console.log('✅ JavaScript 로드 완료');
+    </script>
+</body>
+</html>
