@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FactCheck AI - 뉴스 검증 시스템</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ffff, #ff006e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            margin-bottom: 30px;
+        }
+
+        .search-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #00ffff, #0099cc);
+            border: none;
+            border-radius: 15px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #00ffff;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: none;
+        }
+
+        .score-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .score-high { background: linear-gradient(45deg, #00ff88, #00cc66); }
+        .score-medium { background: linear-gradient(45deg, #ffaa00, #ff8800); }
+        .score-low { background: linear-gradient(45deg, #ff006e, #cc0055); }
+
+        .source-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #00ffff;
+        }
+
+        .source-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .source-description {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+
+        .source-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 14px;
+            opacity: 0.8;
+            flex-wrap: wrap;
+        }
+
+        .source-link {
+            color: #00ffff;
+            text-decoration: none;
+        }
+
+        .credibility-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .credibility-high { background: #00ff88; color: #000; }
+        .credibility-medium { background: #ffaa00; color: #000; }
+        .title-match-score {
+            background: rgba(0, 255, 255, 0.2);
+            color: #00ffff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .matched-keywords {
+            background: rgba(255, 255, 0, 0.2);
+            color: #ffff00;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 11px;
+            margin: 2px;
+            display: inline-block;
+        }
+        
+        .filter-stats {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .filter-stats h4 {
+            color: #00ffff;
+            margin-bottom: 10px;
+        }
+
+        .error-section {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .error-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .error-details {
+            opacity: 0.8;
+            margin-bottom: 20px;
+        }
+
+        /* 시각화 스타일 */
+        .visualization-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .viz-container {
+            margin-bottom: 30px;
+        }
+
+        .viz-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #00ffff;
+            text-align: center;
+        }
+
+        .mindmap-svg, .timeline-container {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mindmap-svg {
+            height: 500px;
+        }
+
+        .timeline-container {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .timeline-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .timeline-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        .timeline-container::-webkit-scrollbar-thumb {
+            background: #ff006e;
+            border-radius: 4px;
+        }
+
+        .node-center {
+            fill: #ff006e;
+            stroke: #fff;
+            stroke-width: 4px;
+            filter: drop-shadow(0 0 10px rgba(255, 0, 110, 0.5));
+        }
+
+        .node-news {
+            fill: #00ffff;
+            stroke: #fff;
+            stroke-width: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.3));
+        }
+
+        .node-news:hover {
+            filter: drop-shadow(0 0 15px rgba(255, 140, 0, 0.8));
+        }
+
+        .link {
+            stroke: rgba(255, 255, 255, 0.6);
+            stroke-width: 2px;
+            opacity: 0.7;
+        }
+
+        .node-text {
+            fill: white;
+            font-size: 11px;
+            font-weight: 600;
+            text-anchor: middle;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+        }
+
+        .node-text-center {
+            fill: white;
+            font-size: 16px;
+            font-weight: 700;
+            text-anchor: middle;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+        }
+
+        /* 마인드맵 컨트롤 버튼 */
+        .mindmap-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 12px;
+            margin: 2px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .viz-container {
+            position: relative;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .axis text {
+            fill: white;
+            font-size: 12px;
+        }
+
+        .axis path,
+        .axis line {
+            stroke: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <i class="fas fa-shield-alt"></i>
+                FactCheck AI
+            </div>
+            <div class="subtitle">AI 기반 뉴스 신뢰도 검증 시스템</div>
+        </div>
+
+        <div class="search-section">
+            <div class="search-box">
+                <input type="text" class="search-input" placeholder="검증하고 싶은 뉴스나 사건을 입력하세요..." id="searchInput">
+                <button class="search-btn" onclick="verifyNews()" id="searchBtn">
+                    <i class="fas fa-search"></i>
+                    검증하기
+                </button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>뉴스를 검증하고 있습니다...</div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="score-section">
+                <div class="score-circle" id="scoreCircle">
+                    <span id="scoreValue">0</span>%
+                </div>
+                <div id="scoreDescription">검증 결과</div>
+            </div>
+
+            <div id="sourcesList">
+                <!-- 검색 결과가 여기에 표시됩니다 -->
+            </div>
+
+            <div id="analysisContent">
+                <!-- 분석 결과가 여기에 표시됩니다 -->
+            </div>
+
+            <!-- 시각화 섹션 추가 -->
+            <div class="visualization-section" id="visualizationSection" style="display: none;">
+                <div class="viz-container">
+                    <div class="viz-title">🗞️ 뉴스 관계도 (마인드맵)</div>
+                    <div class="mindmap-controls">
+                        <button class="control-btn" onclick="fitAllNodes()">📐 전체보기</button>
+                        <button class="control-btn" onclick="resetMindMap()">🔄 리셋</button>
+                        <button class="control-btn" onclick="centerMindMap()">🎯 중심</button>
+                    </div>
+                    <svg class="mindmap-svg" id="mindmapSvg"></svg>
+                    <div style="text-align: center; margin-top: 15px; font-size: 12px; opacity: 0.8; line-height: 1.4;">
+                        💡 <strong>스마트 뉴스 마인드맵:</strong> 노드 드래그로 이동 | 마우스 휠로 확대/축소<br>
+                        🔴 메인 키워드 (중심) → 🟣 키워드 그룹 (브랜치) → 🟢🟡🔴 뉴스 (말단)<br>
+                        <strong>그룹 분류:</strong> 🔑키워드 🌐도메인 ⏰시간대 🛡️신뢰도별 자동 분류<br>
+                        ⚡ 최신 뉴스는 노란 테두리 | 숫자는 매칭 점수 | 클릭하면 원문 기사로 이동
+                    </div>
+                </div>
+                
+                <div class="viz-container">
+                    <div class="viz-title">📈 시간대별 뉴스 발행 트렌드</div>
+                    <div class="timeline-container" id="timeline"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 툴팁 -->
+        <div class="tooltip" id="tooltip" style="display: none;"></div>
+    </div>
+
+    <script>
+        console.log('🚀 FactCheck AI 로드됨');
+
+        async function verifyNews() {
+            console.log('🔍 verifyNews 함수 호출됨');
+            
+            const searchInput = document.getElementById('searchInput');
+            const query = searchInput.value.trim();
+            
+            console.log('📝 입력된 쿼리:', query);
+            
+            if (!query) {
+                alert('검증할 내용을 입력해주세요.');
+                return;
+            }
+            
+            // UI 상태 변경
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('searchBtn').disabled = true;
+            
+            try {
+                console.log('📡 서버에 요청 전송 중...');
+                
+                const response = await fetch('/api/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+                
+                console.log('📡 서버 응답 상태:', response.status);
+                
+                const data = await response.json();
+                console.log('📦 받은 데이터:', data);
+                
+                if (!response.ok) {
+                    console.error('❌ 서버 에러:', data);
+                    displayError(data);
+                    return;
+                }
+                
+                displayResults(data);
+                
+            } catch (error) {
+                console.error('❌ 네트워크 오류:', error);
+                displayError({
+                    error: 'Network Error',
+                    message: '서버에 연결할 수 없습니다.',
+                    details: '서버가 실행 중인지 확인해주세요.'
+                });
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('searchBtn').disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            console.log('📊 결과 표시 중:', data);
+            
+            // 신뢰도 점수 표시
+            const scoreValue = document.getElementById('scoreValue');
+            const scoreCircle = document.getElementById('scoreCircle');
+            const scoreDescription = document.getElementById('scoreDescription');
+            
+            scoreValue.textContent = data.credibilityScore || 0;
+            
+            if (data.credibilityScore >= 70) {
+                scoreCircle.className = 'score-circle score-high';
+                scoreDescription.textContent = '높은 신뢰도 - 신뢰할 수 있는 정보입니다';
+            } else if (data.credibilityScore >= 40) {
+                scoreCircle.className = 'score-circle score-medium';
+                scoreDescription.textContent = '보통 신뢰도 - 추가 확인이 필요합니다';
+            } else {
+                scoreCircle.className = 'score-circle score-low';
+                scoreDescription.textContent = '낮은 신뢰도 - 주의가 필요합니다';
+            }
+            
+            // 출처 목록 표시
+            const sourcesList = document.getElementById('sourcesList');
+            sourcesList.innerHTML = '';
+            
+            if (!data.sources || data.sources.length === 0) {
+                sourcesList.innerHTML = '<div style="text-align: center; padding: 20px;">검색 결과가 없습니다.</div>';
+                console.log('⚠️ 검색 결과 없음');
+            } else {
+                console.log(`📰 ${data.sources.length}개 뉴스 표시 중...`);
+                
+                data.sources.forEach((source, index) => {
+                    const sourceCard = document.createElement('div');
+                    sourceCard.className = 'source-card';
+                    
+                    const credibilityClass = source.credibility && source.credibility.toLowerCase() === 'high' ? 'credibility-high' : 
+                                           source.credibility && source.credibility.toLowerCase() === 'medium' ? 'credibility-medium' : 'credibility-low';
+                    
+                    // 제목 매칭 점수 표시
+                    const titleMatchScore = source.titleMatchScore ? 
+                        `<span class="title-match-score">제목매칭: ${source.titleMatchScore}</span>` : '';
+                    
+                    // 매칭된 키워드 표시
+                    const matchedKeywords = source.matchedKeywords && source.matchedKeywords.length > 0 ? 
+                        `<div style="margin-top: 8px;">
+                            <strong>매칭 키워드:</strong> 
+                            ${source.matchedKeywords.map(keyword => `<span class="matched-keywords">${keyword}</span>`).join('')}
+                        </div>` : '';
+                    
+                    sourceCard.innerHTML = `
+                        <div class="source-title">${source.title || 'No title'}</div>
+                        <div class="source-description">${source.description || ''}</div>
+                        ${matchedKeywords}
+                        <div class="source-meta">
+                            <a href="${source.url}" target="_blank" class="source-link">
+                                <i class="fas fa-external-link-alt"></i> ${source.domain || 'unknown'}
+                            </a>
+                            <span><i class="fas fa-calendar"></i> ${source.publishedDate || 'Unknown date'}</span>
+                            <span class="credibility-badge ${credibilityClass}">${source.credibility || 'Unknown'}</span>
+                            ${titleMatchScore}
+                        </div>
+                    `;
+                    sourcesList.appendChild(sourceCard);
+                });
+            }
+            
+            // 제목 필터링 통계 표시
+            if (data.titleFilterStats) {
+                const filterInfo = document.createElement('div');
+                filterInfo.className = 'filter-stats';
+                filterInfo.innerHTML = `
+                    <h4>🎯 제목 기반 필터링 결과</h4>
+                    <p><strong>원본 검색 결과:</strong> ${data.titleFilterStats.originalCount}개</p>
+                    <p><strong>제목 매칭 결과:</strong> ${data.titleFilterStats.filteredCount}개</p>
+                    <p><strong>필터링 비율:</strong> ${data.titleFilterStats.filterRate}% 제외</p>
+                    <p><strong>핵심 키워드:</strong> ${data.titleFilterStats.keywords.essential?.join(', ') || '없음'}</p>
+                    <p style="font-size: 12px; opacity: 0.8; margin-top: 8px;">${data.titleFilterStats.message}</p>
+                `;
+                
+                // 결과 상단에 추가
+                const resultsDiv = document.getElementById('results');
+                const existingFilter = resultsDiv.querySelector('.filter-stats');
+                if (existingFilter) {
+                    existingFilter.remove();
+                }
+                resultsDiv.insertBefore(filterInfo, resultsDiv.firstChild);
+            }
+            if (data.analysis) {
+                analysisContent.innerHTML = `
+                    <div style="margin-top: 20px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 10px;">
+                        <h3>상세 분석</h3>
+                        <p><strong>검증 상태:</strong> ${data.analysis.verificationStatus || 'Unknown'}</p>
+                        <p><strong>종합 의견:</strong> ${data.analysis.consensus || 'No consensus'}</p>
+                        <p><strong>상충 정보:</strong> ${data.analysis.conflictingInfo ? '발견됨' : '없음'}</p>
+                    </div>
+                `;
+            }
+            
+            // 결과 표시
+            document.getElementById('results').style.display = 'block';
+            
+            // 시각화 생성
+            if (data.sources && data.sources.length > 0) {
+                createVisualization(data.query, data.sources);
+                document.getElementById('visualizationSection').style.display = 'block';
+            }
+            
+            console.log('✅ 결과 표시 완료');
+        }
+
+        function displayError(errorData) {
+            console.log('❌ 에러 표시:', errorData);
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="error-section">
+                    <div class="error-icon">⚠️</div>
+                    <div class="error-title">${errorData.message || '검색 실패'}</div>
+                    <div class="error-details">${errorData.details || errorData.error || '알 수 없는 오류가 발생했습니다.'}</div>
+                </div>
+            `;
+            resultsDiv.style.display = 'block';
+        }
+
+        // Enter 키로 검색
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                console.log('⌨️ Enter 키 눌림');
+                verifyNews();
+            }
+        });
+
+        // 페이지 로드 완료
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 DOM 로드 완료');
+        });
+
+        // 뉴스 간 관계 분석 함수
+        function analyzeNewsRelationships(newsData) {
+            const relationships = [];
+            
+            for (let i = 0; i < newsData.length; i++) {
+                for (let j = i + 1; j < newsData.length; j++) {
+                    const news1 = newsData[i];
+                    const news2 = newsData[j];
+                    
+                    let connectionStrength = 0;
+                    let connectionType = '';
+                    
+                    // 1. 같은 도메인 (같은 언론사)
+                    if (news1.domain === news2.domain) {
+                        connectionStrength += 3;
+                        connectionType = 'same-source';
+                    }
+                    
+                    // 2. 같은 날짜 발행
+                    if (news1.publishedDate === news2.publishedDate) {
+                        connectionStrength += 2;
+                        connectionType = connectionType || 'same-date';
+                    }
+                    
+                    // 3. 제목 유사도 (공통 단어)
+                    const title1Words = news1.title.toLowerCase().split(/\s+/);
+                    const title2Words = news2.title.toLowerCase().split(/\s+/);
+                    const commonWords = title1Words.filter(word => 
+                        title2Words.includes(word) && word.length > 2
+                    );
+                    
+                    if (commonWords.length >= 2) {
+                        connectionStrength += commonWords.length;
+                        connectionType = connectionType || 'similar-content';
+                    }
+                    
+                    // 4. 신뢰도 유사성
+                    if (news1.credibility === news2.credibility) {
+                        connectionStrength += 1;
+                    }
+                    
+                    // 연결 강도가 충분하면 관계 추가
+                    if (connectionStrength >= 2) {
+                        relationships.push({
+                            source: `news-${i}`,
+                            target: `news-${j}`,
+                            strength: connectionStrength,
+                            type: connectionType,
+                            commonWords: commonWords || []
+                        });
+                    }
+                }
+            }
+            
+            return relationships;
+        }
+
+        // 키워드 중심 트리 구조 생성
+        function buildKeywordTree(centerKeyword, newsData) {
+            const credibilityColors = {
+                'High': '#00ff88',
+                'Medium': '#ffaa00', 
+                'Low': '#ff4444'
+            };
+
+            // 뉴스 데이터 전처리
+            const processedNews = newsData.map((news, index) => {
+                const publishTime = new Date(news.publishedDate);
+                const now = new Date();
+                const hoursAgo = Math.floor((now - publishTime) / (1000 * 60 * 60));
+                const timeText = hoursAgo < 24 ? `${hoursAgo}시간 전` : `${Math.floor(hoursAgo / 24)}일 전`;
+
+                return {
+                    name: news.title.length > 30 ? news.title.substring(0, 30) + '...' : news.title,
+                    fullTitle: news.title,
+                    type: 'news',
+                    url: news.url,
+                    publishedDate: news.publishedDate,
+                    timeText: timeText,
+                    credibility: news.credibility,
+                    credibilityColor: credibilityColors[news.credibility] || '#00ffff',
+                    domain: news.domain,
+                    matchCount: news.matchCount || 0,
+                    description: news.description || '',
+                    isRecent: hoursAgo < 6,
+                    index: index
+                };
+            });
+
+            // 키워드 추출 및 그룹화
+            const keywordGroups = extractKeywordGroups(processedNews, centerKeyword);
+            
+            // 트리 구조 생성
+            const tree = {
+                name: centerKeyword,
+                type: 'root',
+                children: []
+            };
+
+            // 그룹에 포함된 뉴스 인덱스 추적
+            const groupedNewsIndices = new Set();
+
+            // 키워드 그룹별로 브랜치 생성
+            keywordGroups.forEach(group => {
+                if (group.news.length > 0) {
+                    const keywordBranch = {
+                        name: group.keyword,
+                        type: 'keyword',
+                        newsCount: group.news.length,
+                        relevanceScore: group.relevanceScore || group.count,
+                        groupType: group.type || 'keyword-group',
+                        children: group.news
+                    };
+                    tree.children.push(keywordBranch);
+                    
+                    // 그룹에 포함된 뉴스 인덱스 기록
+                    group.news.forEach(news => {
+                        groupedNewsIndices.add(news.index);
+                    });
+                }
+            });
+
+            // 키워드 그룹에 속하지 않는 뉴스들 처리
+            const ungroupedNews = processedNews.filter(news => 
+                !groupedNewsIndices.has(news.index)
+            );
+
+            // 미분류 뉴스가 있으면 추가 분류 시도
+            if (ungroupedNews.length > 0) {
+                // 1. 신뢰도별 그룹핑
+                const credibilityGroups = new Map();
+                ungroupedNews.forEach(news => {
+                    const cred = news.credibility || 'Medium';
+                    if (!credibilityGroups.has(cred)) {
+                        credibilityGroups.set(cred, []);
+                    }
+                    credibilityGroups.get(cred).push(news);
+                });
+
+                // 신뢰도별로 2개 이상 뉴스가 있으면 그룹 생성
+                credibilityGroups.forEach((newsArray, credibility) => {
+                    if (newsArray.length >= 2) {
+                        const credibilityNames = {
+                            'High': '신뢰도 높은 뉴스',
+                            'Medium': '일반 뉴스',
+                            'Low': '검증 필요 뉴스'
+                        };
+                        
+                        tree.children.push({
+                            name: credibilityNames[credibility] || '기타 뉴스',
+                            type: 'keyword',
+                            newsCount: newsArray.length,
+                            groupType: 'credibility-group',
+                            children: newsArray
+                        });
+                        
+                        // 분류된 뉴스 제거
+                        newsArray.forEach(news => {
+                            const index = ungroupedNews.findIndex(n => n.index === news.index);
+                            if (index !== -1) ungroupedNews.splice(index, 1);
+                        });
+                    }
+                });
+
+                // 2. 시간대별 그룹핑 (남은 뉴스 중)
+                if (ungroupedNews.length > 0) {
+                    const timeGroups = {
+                        recent: ungroupedNews.filter(news => news.isRecent),
+                        older: ungroupedNews.filter(news => !news.isRecent)
+                    };
+
+                    if (timeGroups.recent.length >= 2) {
+                        tree.children.push({
+                            name: '최신 속보',
+                            type: 'keyword',
+                            newsCount: timeGroups.recent.length,
+                            groupType: 'time-group',
+                            children: timeGroups.recent
+                        });
+                        
+                        // 분류된 뉴스 제거
+                        timeGroups.recent.forEach(news => {
+                            const index = ungroupedNews.findIndex(n => n.index === news.index);
+                            if (index !== -1) ungroupedNews.splice(index, 1);
+                        });
+                    }
+
+                    if (timeGroups.older.length >= 2) {
+                        tree.children.push({
+                            name: '이전 관련 뉴스',
+                            type: 'keyword',
+                            newsCount: timeGroups.older.length,
+                            groupType: 'time-group',
+                            children: timeGroups.older
+                        });
+                        
+                        // 분류된 뉴스 제거
+                        timeGroups.older.forEach(news => {
+                            const index = ungroupedNews.findIndex(n => n.index === news.index);
+                            if (index !== -1) ungroupedNews.splice(index, 1);
+                        });
+                    }
+                }
+
+                // 3. 여전히 남은 뉴스들은 "기타" 그룹으로
+                if (ungroupedNews.length > 0) {
+                    tree.children.push({
+                        name: '기타 관련 뉴스',
+                        type: 'keyword',
+                        newsCount: ungroupedNews.length,
+                        groupType: 'misc-group',
+                        children: ungroupedNews
+                    });
+                }
+            }
+
+            // 빈 그룹 제거 및 정렬
+            tree.children = tree.children
+                .filter(child => child.children && child.children.length > 0)
+                .sort((a, b) => {
+                    // 관련성 점수가 높은 순, 뉴스 개수가 많은 순으로 정렬
+                    const scoreA = (a.relevanceScore || 0) + (a.newsCount * 0.5);
+                    const scoreB = (b.relevanceScore || 0) + (b.newsCount * 0.5);
+                    return scoreB - scoreA;
+                });
+
+            return tree;
+        }
+
+        // 개선된 키워드 그룹 추출
+        function extractKeywordGroups(newsData, centerKeyword) {
+            const keywordFreq = new Map();
+            const stopWords = new Set(['뉴스', '기사', '보도', '발표', '공개', '확인', '관련', '대한', '위한', '통해', '따른', '이번', '오늘', '어제', '내일', '최근', '현재', '지난', '다음', '그동안', '앞으로']);
+            
+            // 각 뉴스에서 키워드 추출 (제목 + 설명)
+            newsData.forEach((news, index) => {
+                const textToAnalyze = `${news.fullTitle} ${news.description || ''}`.toLowerCase();
+                
+                // 한글, 영문, 숫자만 추출하고 의미있는 단어 필터링
+                const words = textToAnalyze
+                    .replace(/[^\w\s가-힣]/g, ' ')
+                    .split(/\s+/)
+                    .filter(word => {
+                        // 길이 조건: 한글 2글자 이상, 영문 3글자 이상
+                        const isValidLength = /[가-힣]/.test(word) ? word.length >= 2 : word.length >= 3;
+                        const isNotStopWord = !stopWords.has(word);
+                        const isNotCenterKeyword = word !== centerKeyword.toLowerCase();
+                        const isNotNumber = !/^\d+$/.test(word);
+                        
+                        return isValidLength && isNotStopWord && isNotCenterKeyword && isNotNumber;
+                    });
+                
+                // 키워드 빈도 계산 및 뉴스 인덱스 저장
+                words.forEach(word => {
+                    if (!keywordFreq.has(word)) {
+                        keywordFreq.set(word, { 
+                            count: 0, 
+                            newsIndices: new Set(),
+                            relevanceScore: 0
+                        });
+                    }
+                    const keywordData = keywordFreq.get(word);
+                    keywordData.count++;
+                    keywordData.newsIndices.add(index);
+                    
+                    // 제목에 있으면 가중치 추가
+                    if (news.fullTitle.toLowerCase().includes(word)) {
+                        keywordData.relevanceScore += 2;
+                    } else {
+                        keywordData.relevanceScore += 1;
+                    }
+                });
+            });
+
+            // 키워드 그룹 생성 - 더 유연한 조건
+            const groups = [];
+            const usedNewsIndices = new Set();
+            
+            Array.from(keywordFreq.entries())
+                .filter(([word, data]) => {
+                    // 최소 2개 뉴스에서 언급되거나, 높은 관련성 점수를 가진 키워드
+                    return data.count >= 2 || data.relevanceScore >= 3;
+                })
+                .sort((a, b) => {
+                    // 관련성 점수와 빈도를 모두 고려한 정렬
+                    const scoreA = a[1].relevanceScore + (a[1].count * 0.5);
+                    const scoreB = b[1].relevanceScore + (b[1].count * 0.5);
+                    return scoreB - scoreA;
+                })
+                .slice(0, 8) // 최대 8개 그룹으로 확장
+                .forEach(([word, data]) => {
+                    const groupNews = Array.from(data.newsIndices)
+                        .map(index => newsData[index])
+                        .filter(news => news); // 유효한 뉴스만
+                    
+                    if (groupNews.length > 0) {
+                        groups.push({
+                            keyword: word,
+                            count: data.count,
+                            relevanceScore: data.relevanceScore,
+                            news: groupNews
+                        });
+                        
+                        // 사용된 뉴스 인덱스 기록
+                        data.newsIndices.forEach(idx => usedNewsIndices.add(idx));
+                    }
+                });
+
+            // 그룹에 속하지 않은 뉴스들을 위한 추가 처리
+            const ungroupedNews = newsData.filter((news, index) => !usedNewsIndices.has(index));
+            
+            // 미분류 뉴스가 많으면 추가 키워드 그룹 생성
+            if (ungroupedNews.length > 0) {
+                // 미분류 뉴스에서 공통 키워드 재추출
+                const additionalKeywords = extractAdditionalKeywords(ungroupedNews, centerKeyword);
+                
+                additionalKeywords.forEach(keywordGroup => {
+                    if (keywordGroup.news.length > 0) {
+                        groups.push(keywordGroup);
+                        keywordGroup.news.forEach(news => {
+                            const index = newsData.findIndex(n => n.fullTitle === news.fullTitle);
+                            if (index !== -1) usedNewsIndices.add(index);
+                        });
+                    }
+                });
+            }
+
+            return groups;
+        }
+
+        // 미분류 뉴스를 위한 추가 키워드 추출
+        function extractAdditionalKeywords(ungroupedNews, centerKeyword) {
+            const additionalGroups = [];
+            
+            // 도메인별 그룹핑
+            const domainGroups = new Map();
+            ungroupedNews.forEach(news => {
+                const domain = news.domain || '기타';
+                if (!domainGroups.has(domain)) {
+                    domainGroups.set(domain, []);
+                }
+                domainGroups.get(domain).push(news);
+            });
+            
+            // 도메인별로 2개 이상 뉴스가 있으면 그룹 생성
+            domainGroups.forEach((newsArray, domain) => {
+                if (newsArray.length >= 2) {
+                    additionalGroups.push({
+                        keyword: `${domain} 뉴스`,
+                        count: newsArray.length,
+                        relevanceScore: newsArray.length,
+                        news: newsArray,
+                        type: 'domain-group'
+                    });
+                }
+            });
+            
+            // 시간대별 그룹핑 (최신 뉴스)
+            const recentNews = ungroupedNews.filter(news => news.isRecent);
+            if (recentNews.length >= 2) {
+                additionalGroups.push({
+                    keyword: '최신 속보',
+                    count: recentNews.length,
+                    relevanceScore: recentNews.length * 2, // 최신 뉴스에 가중치
+                    news: recentNews,
+                    type: 'time-group'
+                });
+            }
+            
+            return additionalGroups;
+        }
+
+        // 키워드 툴팁 함수
+        function showKeywordTooltip(event, d) {
+            const tooltip = document.getElementById('tooltip');
+            
+            // 그룹 타입별 아이콘과 설명
+            const groupTypeInfo = {
+                'domain-group': { icon: '🌐', name: '도메인별 그룹', desc: '같은 언론사의 뉴스들' },
+                'time-group': { icon: '⏰', name: '시간별 그룹', desc: '비슷한 시간대의 뉴스들' },
+                'credibility-group': { icon: '🛡️', name: '신뢰도별 그룹', desc: '신뢰도가 유사한 뉴스들' },
+                'misc-group': { icon: '📂', name: '기타 그룹', desc: '분류되지 않은 관련 뉴스들' },
+                'keyword-group': { icon: '🔑', name: '키워드 그룹', desc: '공통 키워드를 가진 뉴스들' }
+            };
+            
+            const groupInfo = groupTypeInfo[d.groupType] || groupTypeInfo['keyword-group'];
+            
+            tooltip.innerHTML = `
+                <div style="border-left: 4px solid ${getGroupColor(d.groupType)}; padding-left: 8px;">
+                    <strong style="color: ${getGroupColor(d.groupType)};">${groupInfo.icon} ${groupInfo.name}: "${d.name}"</strong><br>
+                    <div style="margin: 8px 0; padding: 4px 0; border-top: 1px solid rgba(255,255,255,0.2);">
+                        <strong>📊 관련 뉴스:</strong> ${d.newsCount}개<br>
+                        <strong>🎯 분류 기준:</strong> ${groupInfo.desc}<br>
+                        ${d.relevanceScore ? `<strong>⭐ 관련성 점수:</strong> ${d.relevanceScore}<br>` : ''}
+                    </div>
+                    <div style="font-size: 11px; opacity: 0.8; margin-top: 6px;">
+                        💡 이 그룹의 뉴스들을 클릭하면 원문을 볼 수 있습니다
+                    </div>
+                </div>
+            `;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (event.pageX + 15) + 'px';
+            tooltip.style.top = (event.pageY - 10) + 'px';
+        }
+        
+        // 그룹 타입별 색상 반환
+        function getGroupColor(groupType) {
+            switch(groupType) {
+                case 'domain-group': return '#ff9500';
+                case 'time-group': return '#00d4ff';
+                case 'credibility-group': return '#a855f7';
+                case 'misc-group': return '#6b7280';
+                default: return '#8338ec';
+            }
+        }
+        function createKeywordClusters(newsData, originalKeyword) {
+            const clusters = new Map();
+            
+            // 원본 키워드 클러스터
+            clusters.set('main', {
+                id: 'main',
+                label: originalKeyword,
+                type: 'main-keyword',
+                news: []
+            });
+            
+            // 뉴스에서 공통 키워드 추출
+            const keywordFreq = new Map();
+            
+            newsData.forEach((news, index) => {
+                const words = news.title.toLowerCase()
+                    .replace(/[^\w\s가-힣]/g, ' ')
+                    .split(/\s+/)
+                    .filter(word => word.length > 2 && !['뉴스', '기사', '보도'].includes(word));
+                
+                words.forEach(word => {
+                    if (!keywordFreq.has(word)) {
+                        keywordFreq.set(word, { count: 0, newsIndices: [] });
+                    }
+                    keywordFreq.get(word).count++;
+                    keywordFreq.get(word).newsIndices.push(index);
+                });
+            });
+            
+            // 빈도가 높은 키워드로 클러스터 생성 (2개 이상 뉴스에서 언급)
+            Array.from(keywordFreq.entries())
+                .filter(([word, data]) => data.count >= 2 && word !== originalKeyword.toLowerCase())
+                .sort((a, b) => b[1].count - a[1].count)
+                .slice(0, 4) // 최대 4개 추가 클러스터
+                .forEach(([word, data]) => {
+                    clusters.set(word, {
+                        id: `cluster-${word}`,
+                        label: word,
+                        type: 'keyword-cluster',
+                        news: data.newsIndices,
+                        frequency: data.count
+                    });
+                });
+            
+            return clusters;
+        }
+        let currentSimulation = null;
+        let currentZoom = null;
+        let currentNodes = null;
+
+        function fitAllNodes() {
+            if (!currentNodes || !currentZoom) return;
+
+            const svg = d3.select('#mindmapSvg');
+            const width = svg.node().clientWidth;
+            const height = svg.node().clientHeight;
+
+            // 모든 노드의 경계 계산
+            const margin = 80;
+            let minX = Infinity, maxX = -Infinity;
+            let minY = Infinity, maxY = -Infinity;
+
+            currentNodes.forEach(d => {
+                if (d.x < minX) minX = d.x;
+                if (d.x > maxX) maxX = d.x;
+                if (d.y < minY) minY = d.y;
+                if (d.y > maxY) maxY = d.y;
+            });
+
+            // 노드들이 모두 보이도록 스케일과 변환 계산
+            const nodeWidth = maxX - minX;
+            const nodeHeight = maxY - minY;
+            
+            const scale = Math.min(
+                (width - margin * 2) / nodeWidth,
+                (height - margin * 2) / nodeHeight,
+                2  // 최대 2배까지만 확대
+            );
+
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+            
+            const translateX = width / 2 - centerX * scale;
+            const translateY = height / 2 - centerY * scale;
+
+            // 부드러운 전환으로 적용
+            svg.transition()
+                .duration(1000)
+                .call(currentZoom.transform, d3.zoomIdentity
+                    .translate(translateX, translateY)
+                    .scale(scale));
+        }
+
+        function resetMindMap() {
+            if (currentSimulation) {
+                currentSimulation.alpha(1).restart();
+            }
+        }
+
+        function centerMindMap() {
+            if (currentZoom) {
+                const svg = d3.select('#mindmapSvg');
+                svg.transition()
+                    .duration(750)
+                    .call(currentZoom.transform, d3.zoomIdentity);
+            }
+        }
+
+        // 시각화 생성 함수
+        function createVisualization(query, newsData) {
+            createMindMap(query, newsData);
+            createTimeline(newsData);
+        }
+
+        // 방사형 마인드맵 생성
+        function createMindMap(centerKeyword, newsData) {
+            const svg = d3.select('#mindmapSvg');
+            svg.selectAll('*').remove();
+
+            const width = svg.node().clientWidth;
+            const height = svg.node().clientHeight;
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // 신뢰도별 색상
+            const credibilityColors = {
+                'High': '#00ff88',
+                'Medium': '#ffaa00', 
+                'Low': '#ff4444'
+            };
+
+            // 중심 노드 생성
+            const centerNode = {
+                x: centerX,
+                y: centerY,
+                text: centerKeyword,
+                type: 'center',
+                radius: 40
+            };
+
+            // 뉴스 노드들을 방사형으로 배치
+            const newsNodes = newsData.map((news, i) => {
+                const angle = (i / newsData.length) * 2 * Math.PI;
+                const radius = 150 + Math.random() * 100; // 거리에 약간의 변화
+                
+                return {
+                    x: centerX + Math.cos(angle) * radius,
+                    y: centerY + Math.sin(angle) * radius,
+                    text: news.title.length > 30 ? news.title.substring(0, 30) + '...' : news.title,
+                    fullTitle: news.title,
+                    url: news.url,
+                    type: 'news',
+                    credibility: news.credibility || 'Medium',
+                    credibilityColor: credibilityColors[news.credibility || 'Medium'],
+                    radius: 25,
+                    publishedAt: news.publishedAt
+                };
+            });
+
+            const allNodes = [centerNode, ...newsNodes];
+
+            // 중심에서 각 뉴스로 연결하는 직선 링크 그리기
+            svg.append('g')
+                .selectAll('line')
+                .data(newsNodes)
+                .enter()
+                .append('line')
+                .attr('x1', centerNode.x)
+                .attr('y1', centerNode.y)
+                .attr('x2', d => d.x)
+                .attr('y2', d => d.y)
+                .attr('stroke', '#00ffff')
+                .attr('stroke-width', 2)
+                .attr('opacity', 0.6);
+
+            // 노드 그리기
+            const nodeGroup = svg.append('g')
+                .selectAll('g')
+                .data(allNodes)
+                .enter()
+                .append('g')
+                .attr('transform', d => `translate(${d.x}, ${d.y})`);
+
+            // 원형 노드
+            nodeGroup.append('circle')
+                .attr('r', d => d.radius)
+                .attr('fill', d => {
+                    if (d.type === 'center') return '#ff006e';
+                    return d.credibilityColor;
+                })
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 3)
+                .style('filter', d => {
+                    if (d.type === 'center') return 'drop-shadow(0 0 20px rgba(255, 0, 110, 0.8))';
+                    return `drop-shadow(0 0 10px ${d.credibilityColor}60)`;
+                })
+                .on('click', function(event, d) {
+                    if (d.type === 'news' && d.url) {
+                        window.open(d.url, '_blank');
+                    }
+                })
+                .on('mouseover', function(event, d) {
+                    if (d.type === 'news') {
+                        // 툴팁 표시
+                        d3.select('body').append('div')
+                            .attr('class', 'tooltip')
+                            .style('position', 'absolute')
+                            .style('background', 'rgba(0, 0, 0, 0.8)')
+                            .style('color', 'white')
+                            .style('padding', '10px')
+                            .style('border-radius', '5px')
+                            .style('pointer-events', 'none')
+                            .style('left', (event.pageX + 10) + 'px')
+                            .style('top', (event.pageY - 10) + 'px')
+                            .html(`<strong>${d.fullTitle}</strong><br>신뢰도: ${d.credibility}`);
+                    }
+                })
+                .on('mouseout', function() {
+                    d3.selectAll('.tooltip').remove();
+                });
+
+            // 텍스트 레이블
+            nodeGroup.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('dy', '0.35em')
+                .attr('fill', 'white')
+                .attr('font-size', d => d.type === 'center' ? '16px' : '12px')
+                .attr('font-weight', d => d.type === 'center' ? 'bold' : 'normal')
+                .text(d => d.text)
+                .style('pointer-events', 'none');
+        }
+
+            // 노드 위치 조정
+            nodes.forEach(d => {
+                d.x = d.x + centerX - (width - margin * 2) / 2;
+                d.y = d.y + centerY - (height - margin * 2) / 2;
+            });
+
+            // 링크 그리기 (곡선으로)
+            const link = svg.append('g')
+                .selectAll('path')
+                .data(links)
+                .enter()
+                .append('path')
+                .attr('d', d => {
+                    return `M${d.source.x},${d.source.y}
+                            C${d.source.x},${(d.source.y + d.target.y) / 2}
+                             ${d.target.x},${(d.source.y + d.target.y) / 2}
+                             ${d.target.x},${d.target.y}`;
+                })
+                .style('fill', 'none')
+                .style('stroke', d => {
+                    if (d.source.depth === 0) return 'rgba(255, 0, 110, 0.6)'; // 루트에서
+                    if (d.target.data.type === 'news') return 'rgba(0, 255, 255, 0.4)'; // 뉴스로
+                    return 'rgba(131, 56, 236, 0.5)'; // 키워드 간
+                })
+                .style('stroke-width', d => {
+                    if (d.source.depth === 0) return 4;
+                    if (d.target.data.type === 'news') return 2;
+                    return 3;
+                })
+                .style('opacity', 0.8);
+
+            // 노드 그룹 생성
+            const node = svg.append('g')
+                .selectAll('g')
+                .data(nodes)
+                .enter()
+                .append('g')
+                .attr('class', 'node')
+                .attr('transform', d => `translate(${d.x}, ${d.y})`)
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended));
+
+            // 노드 원 그리기
+            node.append('circle')
+                .attr('r', d => {
+                    if (d.depth === 0) return 50; // 루트 키워드
+                    if (d.data.type === 'keyword') return 35; // 서브 키워드
+                    if (d.data.type === 'news') return d.data.isRecent ? 28 : 22; // 뉴스
+                    return 25;
+                })
+                .style('fill', d => {
+                    if (d.depth === 0) return '#ff006e'; // 루트
+                    if (d.data.type === 'keyword') {
+                        // 그룹 타입별 색상
+                        switch(d.data.groupType) {
+                            case 'domain-group': return '#ff9500'; // 도메인 그룹
+                            case 'time-group': return '#00d4ff'; // 시간 그룹
+                            case 'credibility-group': return '#a855f7'; // 신뢰도 그룹
+                            case 'misc-group': return '#6b7280'; // 기타 그룹
+                            default: return '#8338ec'; // 일반 키워드 그룹
+                        }
+                    }
+                    if (d.data.type === 'news') return d.data.credibilityColor; // 뉴스
+                    return '#00ffff';
+                })
+                .style('stroke', '#fff')
+                .style('stroke-width', d => {
+                    if (d.depth === 0) return 4;
+                    if (d.data.type === 'keyword') return 3;
+                    return d.data.isRecent ? 3 : 2;
+                })
+                .style('filter', function(d) {
+                    if (d.depth === 0) return 'drop-shadow(0 0 20px rgba(255, 0, 110, 0.8))';
+                    if (d.data.type === 'keyword') {
+                        const color = d3.select(this).style('fill');
+                        return `drop-shadow(0 0 15px ${color}60)`;
+                    }
+                    if (d.data.isRecent) return 'drop-shadow(0 0 10px rgba(255, 255, 0, 0.5))';
+                    return `drop-shadow(0 0 8px ${d.data.credibilityColor || '#00ffff'}40)`;
+                })
+                .on('click', function(event, d) {
+                    if (d.data.type === 'news' && d.data.url) {
+                        window.open(d.data.url, '_blank');
+                    }
+                })
+                .on('mouseover', function(event, d) {
+                    if (d.data.type === 'news') {
+                        d3.select(this)
+                            .transition()
+                            .duration(200)
+                            .attr('r', d.data.isRecent ? 33 : 27)
+                            .style('stroke-width', 4);
+                        showEnhancedTooltip(event, d.data);
+                    } else if (d.data.type === 'keyword') {
+                        d3.select(this)
+                            .transition()
+                            .duration(200)
+                            .attr('r', 40)
+                            .style('stroke-width', 4);
+                        showKeywordTooltip(event, d.data);
+                    }
+                })
+                .on('mouseout', function(event, d) {
+                    if (d.data.type === 'news') {
+                        d3.select(this)
+                            .transition()
+                            .duration(200)
+                            .attr('r', d.data.isRecent ? 28 : 22)
+                            .style('stroke-width', d.data.isRecent ? 3 : 2);
+                    } else if (d.data.type === 'keyword') {
+                        d3.select(this)
+                            .transition()
+                            .duration(200)
+                            .attr('r', 35)
+                            .style('stroke-width', 3);
+                    }
+                    hideTooltip();
+                });
+
+            // 텍스트 레이블
+            node.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('dy', '0.35em')
+                .style('font-size', d => {
+                    if (d.depth === 0) return '16px';
+                    if (d.data.type === 'keyword') return '12px';
+                    return '10px';
+                })
+                .style('font-weight', 'bold')
+                .style('fill', 'white')
+                .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.7)')
+                .style('pointer-events', 'none')
+                .text(d => {
+                    if (d.depth === 0) return d.data.name;
+                    if (d.data.type === 'keyword') return d.data.name;
+                    if (d.data.type === 'news') return d.data.matchCount || '•';
+                    return d.data.name;
+                });
+
+            // 뉴스 노드에 추가 정보 표시
+            node.filter(d => d.data.type === 'news')
+                .each(function(d) {
+                    const nodeGroup = d3.select(this);
+                    
+                    // 최신 뉴스 배지
+                    if (d.data.isRecent) {
+                        nodeGroup.append('circle')
+                            .attr('r', 8)
+                            .attr('cx', 20)
+                            .attr('cy', -20)
+                            .style('fill', '#ffff00')
+                            .style('stroke', '#fff')
+                            .style('stroke-width', 1);
+                        
+                        nodeGroup.append('text')
+                            .attr('x', 20)
+                            .attr('y', -16)
+                            .attr('text-anchor', 'middle')
+                            .style('font-size', '8px')
+                            .style('font-weight', 'bold')
+                            .style('fill', '#000')
+                            .text('NEW');
+                    }
+                    
+                    // 신뢰도 표시
+                    nodeGroup.append('circle')
+                        .attr('r', 6)
+                        .attr('cx', -20)
+                        .attr('cy', -20)
+                        .style('fill', d.data.credibilityColor)
+                        .style('stroke', '#fff')
+                        .style('stroke-width', 1);
+                });
+
+            // 키워드 노드에 빈도 표시
+            node.filter(d => d.data.type === 'keyword')
+                .each(function(d) {
+                    const nodeGroup = d3.select(this);
+                    
+                    nodeGroup.append('circle')
+                        .attr('r', 10)
+                        .attr('cx', 25)
+                        .attr('cy', -25)
+                        .style('fill', '#fff')
+                        .style('stroke', '#8338ec')
+                        .style('stroke-width', 2);
+                    
+                    nodeGroup.append('text')
+                        .attr('x', 25)
+                        .attr('y', -21)
+                        .attr('text-anchor', 'middle')
+                        .style('font-size', '10px')
+                        .style('font-weight', 'bold')
+                        .style('fill', '#8338ec')
+                        .text(d.data.newsCount || 0);
+                });
+
+            // 드래그 함수들
+            function dragstarted(event, d) {
+                d3.select(this).raise();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = Math.max(margin, Math.min(width - margin, event.x));
+                d.fy = Math.max(margin, Math.min(height - margin, event.y));
+                
+                // 노드 위치 업데이트
+                d3.select(this).attr('transform', `translate(${d.fx}, ${d.fy})`);
+                
+                // 연결된 링크 업데이트
+                link.attr('d', linkData => {
+                    const source = linkData.source.fx !== undefined ? 
+                        {x: linkData.source.fx, y: linkData.source.fy} : 
+                        {x: linkData.source.x, y: linkData.source.y};
+                    const target = linkData.target.fx !== undefined ? 
+                        {x: linkData.target.fx, y: linkData.target.fy} : 
+                        {x: linkData.target.x, y: linkData.target.y};
+                    
+                    return `M${source.x},${source.y}
+                            C${source.x},${(source.y + target.y) / 2}
+                             ${target.x},${(source.y + target.y) / 2}
+                             ${target.x},${target.y}`;
+                });
+            }
+
+            function dragended(event, d) {
+                d.fx = null;
+                d.fy = null;
+            }
+
+            // 줌 기능
+            const zoom = d3.zoom()
+                .scaleExtent([0.3, 4])
+                .on('zoom', function(event) {
+                    svg.selectAll('g').attr('transform', event.transform);
+                });
+
+            svg.call(zoom);
+            currentZoom = zoom;
+
+            // 전역 변수 설정
+            currentNodes = nodes;
+
+            // 초기 애니메이션
+            node.style('opacity', 0)
+                .transition()
+                .duration(1000)
+                .delay((d, i) => i * 100)
+                .style('opacity', 1);
+
+            link.style('opacity', 0)
+                .transition()
+                .duration(1200)
+                .delay(800)
+                .style('opacity', 0.8);
+
+        // 클러스터 툴팁 함수
+        function showClusterTooltip(event, d) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.innerHTML = `
+                <div style="border-left: 4px solid #8338ec; padding-left: 8px;">
+                    <strong style="color: #8338ec;">🔗 키워드 클러스터: "${d.label}"</strong><br>
+                    <div style="margin: 8px 0; padding: 4px 0; border-top: 1px solid rgba(255,255,255,0.2);">
+                        <strong>📊 언급 빈도:</strong> ${d.frequency}개 뉴스<br>
+                        <strong>🎯 연결된 뉴스:</strong> ${d.news ? d.news.length : 0}개
+                    </div>
+                    <div style="font-size: 11px; opacity: 0.8; margin-top: 6px;">
+                        이 키워드가 포함된 뉴스들이 연결되어 있습니다
+                    </div>
+                </div>
+            `;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (event.pageX + 15) + 'px';
+            tooltip.style.top = (event.pageY - 10) + 'px';
+        }
+
+        // 시간대별 뉴스 표 생성
+        function createTimeline(newsData) {
+            const container = d3.select('#timeline');
+            container.selectAll('*').remove();
+
+            // 뉴스를 날짜별로 그룹화
+            const newsByDate = {};
+            newsData.forEach(news => {
+                const date = news.publishedAt ? new Date(news.publishedAt).toLocaleDateString('ko-KR') : '날짜 미상';
+                if (!newsByDate[date]) {
+                    newsByDate[date] = [];
+                }
+                newsByDate[date].push(news);
+            });
+
+            // 날짜순으로 정렬
+            const sortedDates = Object.keys(newsByDate).sort((a, b) => {
+                if (a === '날짜 미상') return 1;
+                if (b === '날짜 미상') return -1;
+                return new Date(b) - new Date(a);
+            });
+
+            // 표 생성
+            const table = container.append('table')
+                .style('width', '100%')
+                .style('border-collapse', 'collapse')
+                .style('background', 'rgba(0, 0, 0, 0.8)')
+                .style('border-radius', '10px')
+                .style('overflow', 'hidden');
+
+            // 헤더
+            const header = table.append('thead').append('tr');
+            header.append('th')
+                .text('날짜')
+                .style('padding', '15px')
+                .style('background', '#ff006e')
+                .style('color', 'white')
+                .style('font-weight', 'bold')
+                .style('text-align', 'left')
+                .style('width', '120px');
+            
+            header.append('th')
+                .text('뉴스 제목')
+                .style('padding', '15px')
+                .style('background', '#ff006e')
+                .style('color', 'white')
+                .style('font-weight', 'bold')
+                .style('text-align', 'left');
+            
+            header.append('th')
+                .text('신뢰도')
+                .style('padding', '15px')
+                .style('background', '#ff006e')
+                .style('color', 'white')
+                .style('font-weight', 'bold')
+                .style('text-align', 'center')
+                .style('width', '100px');
+
+            // 바디
+            const tbody = table.append('tbody');
+
+            sortedDates.forEach((date, dateIndex) => {
+                const newsForDate = newsByDate[date];
+                
+                newsForDate.forEach((news, newsIndex) => {
+                    const row = tbody.append('tr')
+                        .style('border-bottom', '1px solid rgba(255, 255, 255, 0.1)')
+                        .style('cursor', news.url ? 'pointer' : 'default')
+                        .on('click', function() {
+                            if (news.url) {
+                                window.open(news.url, '_blank');
+                            }
+                        })
+                        .on('mouseover', function() {
+                            d3.select(this).style('background', 'rgba(255, 255, 255, 0.1)');
+                        })
+                        .on('mouseout', function() {
+                            d3.select(this).style('background', 'transparent');
+                        });
+
+                    // 날짜 셀 (첫 번째 뉴스에만 표시)
+                    if (newsIndex === 0) {
+                        row.append('td')
+                            .text(date)
+                            .style('padding', '12px 15px')
+                            .style('color', '#00ffff')
+                            .style('font-weight', 'bold')
+                            .style('vertical-align', 'top')
+                            .attr('rowspan', newsForDate.length);
+                    }
+
+                    // 제목 셀
+                    row.append('td')
+                        .text(news.title)
+                        .style('padding', '12px 15px')
+                        .style('color', 'white')
+                        .style('line-height', '1.4');
+
+                    // 신뢰도 셀
+                    const credibilityColors = {
+                        'High': '#00ff88',
+                        'Medium': '#ffaa00',
+                        'Low': '#ff4444'
+                    };
+                    
+                    row.append('td')
+                        .text(news.credibility || 'Medium')
+                        .style('padding', '12px 15px')
+                        .style('color', credibilityColors[news.credibility || 'Medium'])
+                        .style('font-weight', 'bold')
+                        .style('text-align', 'center');
+                });
+            });
+        }
+            const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+
+            // 날짜별 뉴스 개수 집계
+            const dateCount = {};
+            newsData.forEach(news => {
+                const date = news.publishedDate;
+                dateCount[date] = (dateCount[date] || 0) + 1;
+            });
+
+            const timelineData = Object.entries(dateCount)
+                .map(([date, count]) => ({ date: new Date(date), count }))
+                .sort((a, b) => a.date - b.date);
+
+            // 스케일 설정
+            const xScale = d3.scaleTime()
+                .domain(d3.extent(timelineData, d => d.date))
+                .range([margin.left, width - margin.right]);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(timelineData, d => d.count)])
+                .range([height - margin.bottom, margin.top]);
+
+            // 라인 생성기
+            const line = d3.line()
+                .x(d => xScale(d.date))
+                .y(d => yScale(d.count))
+                .curve(d3.curveMonotoneX);
+
+            // 축 그리기
+            svg.append('g')
+                .attr('class', 'axis')
+                .attr('transform', `translate(0, ${height - margin.bottom})`)
+                .call(d3.axisBottom(xScale).tickFormat(d3.timeFormat('%m/%d')));
+
+            svg.append('g')
+                .attr('class', 'axis')
+                .attr('transform', `translate(${margin.left}, 0)`)
+                .call(d3.axisLeft(yScale));
+
+            // 라인 그리기
+            svg.append('path')
+                .datum(timelineData)
+                .attr('fill', 'none')
+                .attr('stroke', '#00ffff')
+                .attr('stroke-width', 3)
+                .attr('d', line);
+
+            // 점 그리기
+            svg.selectAll('.dot')
+                .data(timelineData)
+                .enter()
+                .append('circle')
+                .attr('class', 'dot')
+                .attr('cx', d => xScale(d.date))
+                .attr('cy', d => yScale(d.count))
+                .attr('r', 5)
+                .attr('fill', '#ff006e')
+                .attr('stroke', 'white')
+                .attr('stroke-width', 2);
+
+            // 레이블
+            svg.append('text')
+                .attr('x', width / 2)
+                .attr('y', height - 5)
+                .attr('text-anchor', 'middle')
+                .style('fill', 'white')
+                .style('font-size', '12px')
+                .text('날짜');
+
+            svg.append('text')
+                .attr('transform', 'rotate(-90)')
+                .attr('x', -height / 2)
+                .attr('y', 15)
+                .attr('text-anchor', 'middle')
+                .style('fill', 'white')
+                .style('font-size', '12px')
+                .text('뉴스 개수');
+        }
+
+        // 고도화된 툴팁 표시
+        function showEnhancedTooltip(event, d) {
+            const tooltip = document.getElementById('tooltip');
+            
+            const credibilityEmoji = {
+                'High': '🟢',
+                'Medium': '🟡', 
+                'Low': '🔴'
+            };
+
+            tooltip.innerHTML = `
+                <div style="border-left: 4px solid ${d.credibilityColor}; padding-left: 8px;">
+                    <strong style="color: ${d.credibilityColor};">${d.fullTitle}</strong><br>
+                    <div style="margin: 8px 0; padding: 4px 0; border-top: 1px solid rgba(255,255,255,0.2);">
+                        <strong>📰 출처:</strong> ${d.domain}<br>
+                        <strong>📅 발행:</strong> ${d.timeText} (${d.publishedDate})<br>
+                        <strong>${credibilityEmoji[d.credibility]} 신뢰도:</strong> ${d.credibility}<br>
+                        <strong>🎯 매칭:</strong> ${d.matchCount}개 키워드
+                        ${d.isRecent ? '<br><strong>⚡ 최신 뉴스</strong>' : ''}
+                    </div>
+                    ${d.description ? `<div style="font-size: 11px; opacity: 0.8; margin-top: 6px;">${d.description.substring(0, 100)}...</div>` : ''}
+                    <div style="margin-top: 8px; font-size: 10px; opacity: 0.7;">
+                        💡 클릭하면 원문을 볼 수 있습니다
+                    </div>
+                </div>
+            `;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (event.pageX + 15) + 'px';
+            tooltip.style.top = (event.pageY - 10) + 'px';
+        }
+
+        // 툴팁 숨기기
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        // 텍스트 줄바꿈
+        function wrapText(text, width) {
+            text.each(function() {
+                const text = d3.select(this);
+                const words = text.text().split(/\s+/).reverse();
+                let word;
+                let line = [];
+                let lineNumber = 0;
+                const lineHeight = 1.1;
+                const y = text.attr('y') || 0;
+                const dy = 0;
+                let tspan = text.text(null).append('tspan').attr('x', 0).attr('y', y).attr('dy', dy + 'em');
+
+                while (word = words.pop()) {
+                    line.push(word);
+                    tspan.text(line.join(' '));
+                    if (tspan.node().getComputedTextLength() > width) {
+                        line.pop();
+                        tspan.text(line.join(' '));
+                        line = [word];
+                        tspan = text.append('tspan').attr('x', 0).attr('y', y).attr('dy', ++lineNumber * lineHeight + dy + 'em').text(word);
+                    }
+                }
+            });
+        }
+
+        console.log('✅ JavaScript 로드 완료');
+    </script>
+</body>
+</html>

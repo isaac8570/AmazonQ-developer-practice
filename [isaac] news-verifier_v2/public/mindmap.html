@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>뉴스 마인드맵 - FactCheck AI</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ffff, #ff006e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .search-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .search-form {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #ff006e, #8338ec);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .visualization-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .mindmap-svg {
+            width: 100%;
+            height: 600px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+        }
+
+        .timeline-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .timeline-svg {
+            width: 100%;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2rem;
+        }
+
+        .node-center {
+            fill: #ff006e;
+            stroke: #fff;
+            stroke-width: 3px;
+        }
+
+        .node-news {
+            fill: #00ffff;
+            stroke: #fff;
+            stroke-width: 2px;
+            cursor: pointer;
+        }
+
+        .node-news:hover {
+            fill: #ff8c00;
+            transform: scale(1.1);
+        }
+
+        .link {
+            stroke: rgba(255, 255, 255, 0.6);
+            stroke-width: 2px;
+        }
+
+        .node-text {
+            fill: white;
+            font-size: 12px;
+            font-weight: 600;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .node-text-center {
+            fill: white;
+            font-size: 16px;
+            font-weight: 700;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🗞️ 뉴스 마인드맵</div>
+            <p>키워드 중심의 뉴스 관계도와 시간대별 트렌드 분석</p>
+        </div>
+
+        <div class="search-section">
+            <form class="search-form" id="searchForm">
+                <input type="text" class="search-input" id="searchInput" 
+                       placeholder="검색할 키워드를 입력하세요 (예: f1 경기, 삼성전자, 코로나)" required>
+                <button type="submit" class="search-btn">🔍 분석하기</button>
+            </form>
+        </div>
+
+        <div class="visualization-container" id="mindmapContainer" style="display: none;">
+            <h3>📊 뉴스 관계도 (마인드맵)</h3>
+            <svg class="mindmap-svg" id="mindmapSvg"></svg>
+        </div>
+
+        <div class="timeline-container" id="timelineContainer" style="display: none;">
+            <h3>📈 시간대별 뉴스 트렌드</h3>
+            <svg class="timeline-svg" id="timelineSvg"></svg>
+        </div>
+
+        <div class="loading" id="loading" style="display: none;">
+            🔄 뉴스 데이터를 분석하고 있습니다...
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip" style="display: none;"></div>
+
+    <script>
+        let currentData = null;
+
+        // 검색 폼 이벤트
+        document.getElementById('searchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = document.getElementById('searchInput').value.trim();
+            if (query) {
+                await searchAndVisualize(query);
+            }
+        });
+
+        // 검색 및 시각화 함수
+        async function searchAndVisualize(query) {
+            showLoading(true);
+            hideContainers();
+
+            try {
+                const response = await fetch('/api/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query })
+                });
+
+                const data = await response.json();
+                currentData = data;
+
+                if (data.sources && data.sources.length > 0) {
+                    createMindMap(query, data.sources);
+                    createTimeline(data.sources);
+                    showContainers();
+                } else {
+                    alert('검색 결과가 없습니다.');
+                }
+            } catch (error) {
+                console.error('검색 오류:', error);
+                alert('검색 중 오류가 발생했습니다.');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 마인드맵 생성
+        function createMindMap(centerKeyword, newsData) {
+            const svg = d3.select('#mindmapSvg');
+            svg.selectAll('*').remove();
+
+            const width = svg.node().clientWidth;
+            const height = svg.node().clientHeight;
+
+            // 중심 노드와 뉴스 노드 데이터 준비
+            const nodes = [
+                { id: 'center', label: centerKeyword, type: 'center', x: width/2, y: height/2 }
+            ];
+
+            const links = [];
+
+            newsData.forEach((news, index) => {
+                const angle = (index / newsData.length) * 2 * Math.PI;
+                const radius = 200;
+                const x = width/2 + Math.cos(angle) * radius;
+                const y = height/2 + Math.sin(angle) * radius;
+
+                nodes.push({
+                    id: `news-${index}`,
+                    label: news.title.length > 30 ? news.title.substring(0, 30) + '...' : news.title,
+                    fullTitle: news.title,
+                    type: 'news',
+                    url: news.url,
+                    publishedDate: news.publishedDate,
+                    credibility: news.credibility,
+                    domain: news.domain,
+                    matchCount: news.matchCount || 0,
+                    x: x,
+                    y: y
+                });
+
+                links.push({
+                    source: 'center',
+                    target: `news-${index}`
+                });
+            });
+
+            // 링크 그리기
+            svg.selectAll('.link')
+                .data(links)
+                .enter()
+                .append('line')
+                .attr('class', 'link')
+                .attr('x1', d => nodes.find(n => n.id === d.source).x)
+                .attr('y1', d => nodes.find(n => n.id === d.source).y)
+                .attr('x2', d => nodes.find(n => n.id === d.target).x)
+                .attr('y2', d => nodes.find(n => n.id === d.target).y);
+
+            // 노드 그리기
+            const nodeGroups = svg.selectAll('.node')
+                .data(nodes)
+                .enter()
+                .append('g')
+                .attr('class', 'node')
+                .attr('transform', d => `translate(${d.x}, ${d.y})`);
+
+            // 노드 원 그리기
+            nodeGroups.append('circle')
+                .attr('r', d => d.type === 'center' ? 40 : 25)
+                .attr('class', d => d.type === 'center' ? 'node-center' : 'node-news')
+                .on('click', function(event, d) {
+                    if (d.type === 'news' && d.url) {
+                        window.open(d.url, '_blank');
+                    }
+                })
+                .on('mouseover', function(event, d) {
+                    if (d.type === 'news') {
+                        showTooltip(event, d);
+                    }
+                })
+                .on('mouseout', hideTooltip);
+
+            // 노드 텍스트 그리기
+            nodeGroups.append('text')
+                .attr('class', d => d.type === 'center' ? 'node-text-center' : 'node-text')
+                .text(d => d.label)
+                .call(wrapText, d => d.type === 'center' ? 80 : 50);
+        }
+
+        // 타임라인 생성
+        function createTimeline(newsData) {
+            const svg = d3.select('#timelineSvg');
+            svg.selectAll('*').remove();
+
+            const width = svg.node().clientWidth;
+            const height = svg.node().clientHeight;
+            const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+
+            // 날짜별 뉴스 개수 집계
+            const dateCount = {};
+            newsData.forEach(news => {
+                const date = news.publishedDate;
+                dateCount[date] = (dateCount[date] || 0) + 1;
+            });
+
+            const timelineData = Object.entries(dateCount)
+                .map(([date, count]) => ({ date: new Date(date), count }))
+                .sort((a, b) => a.date - b.date);
+
+            if (timelineData.length === 0) return;
+
+            // 스케일 설정
+            const xScale = d3.scaleTime()
+                .domain(d3.extent(timelineData, d => d.date))
+                .range([margin.left, width - margin.right]);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(timelineData, d => d.count)])
+                .range([height - margin.bottom, margin.top]);
+
+            // 라인 생성기
+            const line = d3.line()
+                .x(d => xScale(d.date))
+                .y(d => yScale(d.count))
+                .curve(d3.curveMonotoneX);
+
+            // 축 그리기
+            svg.append('g')
+                .attr('transform', `translate(0, ${height - margin.bottom})`)
+                .call(d3.axisBottom(xScale).tickFormat(d3.timeFormat('%m/%d')))
+                .selectAll('text')
+                .style('fill', 'white');
+
+            svg.append('g')
+                .attr('transform', `translate(${margin.left}, 0)`)
+                .call(d3.axisLeft(yScale))
+                .selectAll('text')
+                .style('fill', 'white');
+
+            // 라인 그리기
+            svg.append('path')
+                .datum(timelineData)
+                .attr('fill', 'none')
+                .attr('stroke', '#00ffff')
+                .attr('stroke-width', 3)
+                .attr('d', line);
+
+            // 점 그리기
+            svg.selectAll('.dot')
+                .data(timelineData)
+                .enter()
+                .append('circle')
+                .attr('class', 'dot')
+                .attr('cx', d => xScale(d.date))
+                .attr('cy', d => yScale(d.count))
+                .attr('r', 5)
+                .attr('fill', '#ff006e')
+                .attr('stroke', 'white')
+                .attr('stroke-width', 2);
+
+            // 레이블
+            svg.append('text')
+                .attr('x', width / 2)
+                .attr('y', height - 5)
+                .attr('text-anchor', 'middle')
+                .style('fill', 'white')
+                .text('날짜');
+
+            svg.append('text')
+                .attr('transform', 'rotate(-90)')
+                .attr('x', -height / 2)
+                .attr('y', 15)
+                .attr('text-anchor', 'middle')
+                .style('fill', 'white')
+                .text('뉴스 개수');
+        }
+
+        // 유틸리티 함수들
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function hideContainers() {
+            document.getElementById('mindmapContainer').style.display = 'none';
+            document.getElementById('timelineContainer').style.display = 'none';
+        }
+
+        function showContainers() {
+            document.getElementById('mindmapContainer').style.display = 'block';
+            document.getElementById('timelineContainer').style.display = 'block';
+        }
+
+        function showTooltip(event, d) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.innerHTML = `
+                <strong>${d.fullTitle}</strong><br>
+                <strong>출처:</strong> ${d.domain}<br>
+                <strong>발행일:</strong> ${d.publishedDate}<br>
+                <strong>신뢰도:</strong> ${d.credibility}<br>
+                <strong>매칭 키워드:</strong> ${d.matchCount}개<br>
+                <em>클릭하면 원문을 볼 수 있습니다</em>
+            `;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (event.pageX + 10) + 'px';
+            tooltip.style.top = (event.pageY - 10) + 'px';
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        function wrapText(text, width) {
+            text.each(function() {
+                const text = d3.select(this);
+                const words = text.text().split(/\s+/).reverse();
+                let word;
+                let line = [];
+                let lineNumber = 0;
+                const lineHeight = 1.1;
+                const y = text.attr('y') || 0;
+                const dy = 0;
+                let tspan = text.text(null).append('tspan').attr('x', 0).attr('y', y).attr('dy', dy + 'em');
+
+                while (word = words.pop()) {
+                    line.push(word);
+                    tspan.text(line.join(' '));
+                    if (tspan.node().getComputedTextLength() > width) {
+                        line.pop();
+                        tspan.text(line.join(' '));
+                        line = [word];
+                        tspan = text.append('tspan').attr('x', 0).attr('y', y).attr('dy', ++lineNumber * lineHeight + dy + 'em').text(word);
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

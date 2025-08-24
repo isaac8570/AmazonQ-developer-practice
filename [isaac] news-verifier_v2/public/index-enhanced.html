@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FactCheck AI Enhanced - 뉴스 검증 시스템</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ffff, #ff006e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            margin-bottom: 30px;
+        }
+
+        .search-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+        }
+
+        .keywords-input {
+            flex: 0.5;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.8);
+            color: #333;
+            font-size: 14px;
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #00ffff, #0099cc);
+            border: none;
+            border-radius: 15px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .results-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .mindmap-section, .timeline-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #00ffff;
+        }
+
+        #mindmap {
+            width: 100%;
+            height: 500px;
+            border-radius: 15px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        #timeline-chart {
+            width: 100%;
+            height: 400px;
+        }
+
+        .news-list {
+            grid-column: 1 / -1;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .news-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #00ffff;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .news-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(5px);
+        }
+
+        .news-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #00ffff;
+        }
+
+        .news-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .relevance-score {
+            background: linear-gradient(45deg, #ff006e, #ff4081);
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .keywords-display {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .keyword-tag {
+            background: rgba(0, 255, 255, 0.3);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            border: 1px solid #00ffff;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #00ffff;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .trust-score {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+        }
+
+        .trust-score-value {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #00ffff, #ff006e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .node {
+            cursor: pointer;
+            stroke: #fff;
+            stroke-width: 2px;
+        }
+
+        .node.center {
+            fill: #ff006e;
+        }
+
+        .node.keyword {
+            fill: #00ffff;
+        }
+
+        .node.article {
+            fill: #764ba2;
+        }
+
+        .node:hover {
+            stroke-width: 4px;
+            stroke: #ffff00;
+        }
+
+        .link {
+            stroke: rgba(255, 255, 255, 0.6);
+            stroke-width: 1px;
+        }
+
+        .node-label {
+            font-size: 12px;
+            fill: white;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        @media (max-width: 768px) {
+            .results-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-box {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">FactCheck AI Enhanced</div>
+            <div class="subtitle">키워드 기반 뉴스 검증 & 트렌드 분석 시스템</div>
+        </div>
+
+        <div class="search-section">
+            <div class="search-box">
+                <input type="text" class="search-input" id="searchInput" 
+                       placeholder="검증하고 싶은 뉴스나 주제를 입력하세요...">
+                <input type="text" class="keywords-input" id="keywordsInput" 
+                       placeholder="키워드 (쉼표로 구분)">
+                <button class="search-btn" onclick="searchNews()">
+                    <i class="fas fa-search"></i> 검증하기
+                </button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>뉴스를 분석하고 있습니다...</p>
+        </div>
+
+        <div id="results" style="display: none;">
+            <div class="trust-score" id="trustScore">
+                <div>신뢰도 점수</div>
+                <div class="trust-score-value" id="trustScoreValue">-</div>
+            </div>
+
+            <div class="results-container">
+                <div class="mindmap-section">
+                    <div class="section-title">
+                        <i class="fas fa-project-diagram"></i> 뉴스 관계도
+                    </div>
+                    <svg id="mindmap"></svg>
+                </div>
+
+                <div class="timeline-section">
+                    <div class="section-title">
+                        <i class="fas fa-chart-line"></i> 시간대별 트렌드
+                    </div>
+                    <canvas id="timeline-chart"></canvas>
+                </div>
+
+                <div class="news-list">
+                    <div class="section-title">
+                        <i class="fas fa-newspaper"></i> 관련 뉴스 (정확도 순)
+                    </div>
+                    <div id="newsList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip" style="display: none;"></div>
+
+    <script>
+        let currentData = null;
+        let mindmapSvg = null;
+        let timelineChart = null;
+
+        // 검색 실행
+        async function searchNews() {
+            const query = document.getElementById('searchInput').value.trim();
+            const keywordsStr = document.getElementById('keywordsInput').value.trim();
+            
+            if (!query) {
+                alert('검색어를 입력해주세요.');
+                return;
+            }
+
+            const keywords = keywordsStr ? keywordsStr.split(',').map(k => k.trim()) : [];
+
+            // UI 상태 변경
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/verify-enhanced', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query, keywords })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                currentData = data;
+                
+                displayResults(data);
+                
+            } catch (error) {
+                console.error('검색 오류:', error);
+                alert('검색 중 오류가 발생했습니다: ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // 결과 표시
+        function displayResults(data) {
+            document.getElementById('results').style.display = 'block';
+            
+            // 신뢰도 점수 표시
+            document.getElementById('trustScoreValue').textContent = data.trustScore + '%';
+            
+            // 뉴스 목록 표시
+            displayNewsList(data.results);
+            
+            // 마인드맵 생성
+            createMindMap(data.mindMapData);
+            
+            // 타임라인 차트 생성
+            createTimelineChart(data.timeAnalysis);
+        }
+
+        // 뉴스 목록 표시
+        function displayNewsList(results) {
+            const newsList = document.getElementById('newsList');
+            newsList.innerHTML = '';
+
+            results.forEach((item, index) => {
+                const newsItem = document.createElement('div');
+                newsItem.className = 'news-item';
+                newsItem.onclick = () => window.open(item.url, '_blank');
+
+                const keywordTags = item.matchedKeywords ? 
+                    item.matchedKeywords.map(keyword => 
+                        `<span class="keyword-tag">${keyword}</span>`
+                    ).join('') : '';
+
+                newsItem.innerHTML = `
+                    <div class="news-title">${item.title}</div>
+                    <div class="news-meta">
+                        <span><i class="fas fa-calendar"></i> ${formatDate(item.publishedDate)}</span>
+                        <span class="relevance-score">관련도: ${item.relevanceScore || 0}</span>
+                    </div>
+                    <div class="keywords-display">${keywordTags}</div>
+                `;
+
+                newsList.appendChild(newsItem);
+            });
+        }
+
+        // 마인드맵 생성
+        function createMindMap(mindMapData) {
+            const svg = d3.select('#mindmap');
+            svg.selectAll('*').remove(); // 기존 내용 제거
+
+            const width = 600;
+            const height = 500;
+            
+            svg.attr('width', width).attr('height', height);
+
+            const simulation = d3.forceSimulation(mindMapData.nodes)
+                .force('link', d3.forceLink(mindMapData.links).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('center', d3.forceCenter(width / 2, height / 2));
+
+            // 링크 그리기
+            const link = svg.append('g')
+                .selectAll('line')
+                .data(mindMapData.links)
+                .enter().append('line')
+                .attr('class', 'link')
+                .attr('stroke-width', d => Math.sqrt(d.strength * 5));
+
+            // 노드 그리기
+            const node = svg.append('g')
+                .selectAll('circle')
+                .data(mindMapData.nodes)
+                .enter().append('circle')
+                .attr('class', d => `node ${d.type}`)
+                .attr('r', d => d.size)
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended))
+                .on('click', function(event, d) {
+                    if (d.type === 'article' && d.url) {
+                        window.open(d.url, '_blank');
+                    }
+                })
+                .on('mouseover', function(event, d) {
+                    showTooltip(event, d);
+                })
+                .on('mouseout', hideTooltip);
+
+            // 라벨 추가
+            const label = svg.append('g')
+                .selectAll('text')
+                .data(mindMapData.nodes)
+                .enter().append('text')
+                .attr('class', 'node-label')
+                .text(d => d.name.length > 20 ? d.name.substring(0, 20) + '...' : d.name);
+
+            // 시뮬레이션 업데이트
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                node
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y);
+
+                label
+                    .attr('x', d => d.x)
+                    .attr('y', d => d.y + 5);
+            });
+
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+        }
+
+        // 타임라인 차트 생성
+        function createTimelineChart(timeAnalysis) {
+            const ctx = document.getElementById('timeline-chart').getContext('2d');
+            
+            if (timelineChart) {
+                timelineChart.destroy();
+            }
+
+            const dates = Object.keys(timeAnalysis.dailyCount).sort();
+            const counts = dates.map(date => timeAnalysis.dailyCount[date]);
+
+            timelineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates.map(date => formatDate(date)),
+                    datasets: [{
+                        label: '뉴스 발생 건수',
+                        data: counts,
+                        borderColor: '#00ffff',
+                        backgroundColor: 'rgba(0, 255, 255, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.2)'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.2)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 툴팁 표시
+        function showTooltip(event, d) {
+            const tooltip = document.getElementById('tooltip');
+            let content = `<strong>${d.name}</strong><br>`;
+            
+            if (d.type === 'article') {
+                content += `관련도: ${d.relevanceScore}<br>`;
+                content += `발행일: ${formatDate(d.publishedDate)}<br>`;
+                content += `매칭 키워드: ${d.matchedKeywords ? d.matchedKeywords.join(', ') : '없음'}`;
+            } else if (d.type === 'keyword') {
+                content += `키워드`;
+            } else if (d.type === 'center') {
+                content += `검색 중심`;
+            }
+            
+            tooltip.innerHTML = content;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (event.pageX + 10) + 'px';
+            tooltip.style.top = (event.pageY + 10) + 'px';
+        }
+
+        // 툴팁 숨기기
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        // 날짜 포맷팅
+        function formatDate(dateStr) {
+            if (!dateStr) return '날짜 없음';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('ko-KR');
+        }
+
+        // 엔터키로 검색
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchNews();
+            }
+        });
+
+        document.getElementById('keywordsInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchNews();
+            }
+        });
+    </script>
+</body>
+</html>
