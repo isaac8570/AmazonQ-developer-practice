@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,137 +10,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
-import { Search, Bell, Share2, Save, Globe, Newspaper, Users, Clock, Link2 } from "lucide-react";
+import { Search, Bell, Share2, Save, Globe, Newspaper, Users, Clock, Link2, Loader2 } from "lucide-react";
 import NetworkFlowMap from "@/components/MindMap/NetworkFlowMap";
 import EnhancedEvidencePanel from "@/components/Evidence/EnhancedEvidencePanel";
+import { useSearchParams } from "next/navigation";
+import { api, type Cluster } from "@/lib/api";
 
-// Mock Data
-const MOCK_CLUSTERS = [
-  {
-    id: "c1",
-    label: "신형 폰 배터리 발화 루머(예시)",
-    size: 18,
-    firstSeen: "2025-08-23T09:12:00Z",
-    preview: "커뮤니티 A 게시글 이후 다수 매체 인용…",
-    candidates: [
-      { id: "a1", domain: "ppomppu.co.kr", type: "community", ts: "2025-08-23T09:12:00Z", confidence: "High", title: "[제보] 신형 폰 발열/발화?", url: "#" },
-      { id: "a2", domain: "technews.example", type: "press", ts: "2025-08-23T10:05:00Z", confidence: "Mid", title: "신형 폰 발열 이슈 보도", url: "#" },
-      { id: "a3", domain: "agg.today", type: "aggregator", ts: "2025-08-23T10:22:00Z", confidence: "Low", title: "SNS 모아보기", url: "#" },
-    ],
-  },
-  {
-    id: "c2",
-    label: "게임 업데이트 보안 취약점 논란(예시)",
-    size: 11,
-    firstSeen: "2025-08-22T23:40:00Z",
-    preview: "보도자료 → 커뮤니티 확산",
-    candidates: [
-      { id: "b1", domain: "corppr.example", type: "corpPR", ts: "2025-08-22T23:40:00Z", confidence: "High", title: "긴급 공지: 보안 패치", url: "#" },
-      { id: "b2", domain: "dcinside.com", type: "community", ts: "2025-08-23T00:05:00Z", confidence: "Mid", title: "패치 이후 문제?", url: "#" },
-    ],
-  },
-];
 
-const MOCK_ARTICLES_C1 = {
-  id: "c1",
-  timeline: [
-    { id: "a1", ts: "2025-08-23T09:12:00Z", label: "커뮤니티 A 최초 게시", type: "community", confidence: "High", domain: "ppomppu.co.kr" },
-    { id: "a2", ts: "2025-08-23T10:05:00Z", label: "TechNews 단독 보도", type: "press", confidence: "Mid", domain: "technews.example" },
-    { id: "a4", ts: "2025-08-23T10:18:00Z", label: "언론 B 인용 보도", type: "press", confidence: "High", domain: "news.example" },
-    { id: "a3", ts: "2025-08-23T10:22:00Z", label: "집계 사이트 모아보기", type: "aggregator", confidence: "Low", domain: "agg.today" },
-    { id: "a5", ts: "2025-08-23T11:10:00Z", label: "언론 C 후속 보도", type: "press", confidence: "High", domain: "press.example" },
-  ],
-  networkFlow: {
-    origin: {
-      id: "a1",
-      title: "[제보] 신형 폰 발열/발화?",
-      domain: "ppomppu.co.kr",
-      type: "community",
-      confidence: "High" as const,
-      score: 0.86,
-      timestamp: "2025-08-23T09:12:00Z",
-      isOrigin: true
-    },
-    layers: [
-      [
-        {
-          id: "a2",
-          title: "신형 폰 발열 이슈 보도",
-          domain: "technews.example",
-          type: "press",
-          confidence: "Mid" as const,
-          score: 0.74,
-          timestamp: "2025-08-23T10:05:00Z"
-        },
-        {
-          id: "n4",
-          title: "커뮤니티 B 재게시",
-          domain: "forumB.com",
-          type: "community",
-          confidence: "Mid" as const,
-          score: 0.41,
-          timestamp: "2025-08-23T09:45:00Z"
-        }
-      ],
-      [
-        {
-          id: "a4",
-          title: "언론 B 인용 보도",
-          domain: "news.example",
-          type: "press",
-          confidence: "High" as const,
-          score: 0.62,
-          timestamp: "2025-08-23T10:18:00Z"
-        },
-        {
-          id: "a3",
-          title: "SNS 모아보기",
-          domain: "agg.today",
-          type: "aggregator",
-          confidence: "Low" as const,
-          score: 0.38,
-          timestamp: "2025-08-23T10:22:00Z"
-        }
-      ]
-    ],
-    connections: [
-      { from: "a1", to: "a2", strength: 0.9 },
-      { from: "a1", to: "n4", strength: 0.7 },
-      { from: "a2", to: "a4", strength: 0.8 },
-      { from: "a2", to: "a3", strength: 0.6 }
-    ]
-  },
-  evidence: {
-    selectedArticleId: "a2",
-    scoreBreakdown: {
-      SOURCE: { value: 0.65, evidence: ["TechNews - 중간 신뢰도 언론사", "도메인 평판 78점"], confidence: "medium" as const },
-      FACT: { value: 0.72, evidence: ["1차 출처(커뮤니티) 확인", "제조사 공식 입장 미확인"], confidence: "medium" as const },
-      BIAS: { value: 0.58, evidence: ["중립적 어조", "감정적 표현 일부 포함"], confidence: "medium" as const },
-      TRANSPARENCY: { value: 0.85, evidence: ["기자명 명시", "발행시간 정확"], confidence: "high" as const },
-      CONTEXT: { value: 0.45, evidence: ["배경 설명 부족", "관련 정보 제한적"], confidence: "low" as const }
-    },
-    timestamps: {
-      t_claimed: "2025-08-23 10:05 KST",
-      t_archive: "2025-08-23 10:09 KST", 
-      t_seen: "2025-08-23 10:06 KST",
-      confidence: "High" as const,
-      discrepancies: []
-    },
-    citations: {
-      inbound: [
-        { source: "news.example", anchor: "TechNews에 따르면", url: "#", confidence: 0.9 }
-      ],
-      outbound: [
-        { target: "ppomppu.co.kr", anchor: "커뮤니티 제보", url: "#", verified: true }
-      ]
-    },
-    verification: {
-      waybackStatus: "verified" as const,
-      metadataConsistency: 0.95,
-      domainReputation: 0.78
-    }
-  },
-};
+
+
 
 function TypeIcon({ type }: { type: string }) {
   const className = "h-4 w-4";
@@ -182,14 +60,16 @@ function HeaderBar({ onSearch }: { onSearch: (q: string) => void }) {
 }
 
 function ClusterList({ clusters, onPick, activeId }: any) {
+  const validClusters = Array.isArray(clusters) ? clusters : [];
+  
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm">정보 그룹<span className="text-zinc-400"> · {clusters.length}</span></CardTitle>
+        <CardTitle className="text-sm">정보 그룹<span className="text-zinc-400"> · {validClusters.length}</span></CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="h-[68vh] overflow-y-auto space-y-2">
-          {clusters.map((c: any) => (
+          {validClusters.map((c: any) => (
             <button
               key={c.id}
               onClick={() => onPick(c.id)}
@@ -201,22 +81,22 @@ function ClusterList({ clusters, onPick, activeId }: any) {
               </div>
               <div className="text-xs text-zinc-500 mt-1 truncate">{c.preview}</div>
               <div className="flex gap-2 mt-2 overflow-x-auto">
-                {c.candidates.slice(0,3).map((k: any) => (
-                  <TooltipProvider key={k.id}>
+                {(c.candidates || c.articles || []).slice(0,3).map((k: any, idx: number) => (
+                  <TooltipProvider key={k.id || idx}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className={`text-[10px] px-2 py-1 rounded-full border whitespace-nowrap ${activeId===c.id?"bg-white":"bg-zinc-50"}`}>
                           <span className="inline-flex items-center gap-1">
                             <span className={`inline-block h-2 w-2 rounded-full ${k.confidence==='High'?'bg-emerald-500':k.confidence==='Mid'?'bg-amber-500':'bg-zinc-400'}`}></span>
-                            <TypeIcon type={k.type} />
-                            <span className="text-zinc-600">{k.domain}</span>
+                            <TypeIcon type={k.type || k.source_type || 'press'} />
+                            <span className="text-zinc-600">{k.domain || 'unknown'}</span>
                           </span>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
                         <div className="text-xs space-y-1">
-                          <div className="font-medium">{k.title}</div>
-                          <div className="text-zinc-500">{new Date(k.ts).toLocaleString()}</div>
+                          <div className="font-medium">{k.title || 'No title'}</div>
+                          <div className="text-zinc-500">{k.ts ? new Date(k.ts).toLocaleString() : k.timestamp ? new Date(k.timestamp).toLocaleString() : 'No date'}</div>
                         </div>
                       </TooltipContent>
                     </Tooltip>
@@ -263,10 +143,134 @@ function TimelineView({ items }: { items: any[] }) {
 }
 
 export default function SearchPage() {
-  const [active, setActive] = useState("c1");
+  const searchParams = useSearchParams();
+  const query = searchParams.get('q') || '';
+  
+  const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [active, setActive] = useState("");
   const [tab, setTab] = useState("timeline");
-  const activeCluster = useMemo(()=>MOCK_CLUSTERS.find(c=>c.id===active)!, [active]);
-  const data = MOCK_ARTICLES_C1;
+  
+  const activeCluster = useMemo(() => {
+    if (!clusters || clusters.length === 0) return null;
+    return clusters.find(c => c.id === active) || clusters[0];
+  }, [clusters, active]);
+
+  useEffect(() => {
+    if (query) {
+      searchClusters(query);
+    }
+  }, [query]);
+
+  const searchClusters = async (searchQuery: string) => {
+    setLoading(true);
+    try {
+      const response = await api.search({ 
+        query: searchQuery, 
+        sources: ['news', 'community'] 
+      });
+      
+      // Validate response structure
+      if (response?.clusters && Array.isArray(response.clusters) && response.clusters.length > 0) {
+        // Ensure each cluster has articles array
+        const validClusters = response.clusters.map(cluster => ({
+          ...cluster,
+          articles: Array.isArray(cluster.articles) ? cluster.articles : []
+        }));
+        setClusters(validClusters);
+        setActive(validClusters[0].id);
+      } else {
+        throw new Error('No valid clusters found');
+      }
+    } catch (error) {
+      console.error('Search failed:', error);
+      setClusters([]);
+      setActive('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Convert cluster data to timeline format
+  const timelineData = useMemo(() => {
+    if (!activeCluster || !activeCluster.articles || !Array.isArray(activeCluster.articles)) {
+      return [];
+    }
+    return activeCluster.articles.map(article => ({
+      id: article.id,
+      ts: article.timestamp,
+      label: article.title,
+      type: article.source_type,
+      confidence: article.confidence,
+      domain: article.domain
+    }));
+  }, [activeCluster]);
+
+  // Convert to network flow format
+  const networkFlowData = useMemo(() => {
+    if (!activeCluster?.articles || !Array.isArray(activeCluster.articles) || activeCluster.articles.length === 0) {
+      return null;
+    }
+    
+    const articles = activeCluster.articles;
+    
+    // Sort by timestamp to find origin
+    const sortedArticles = [...articles].sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+    
+    return {
+      origin: {
+        id: sortedArticles[0].id,
+        title: sortedArticles[0].title,
+        domain: sortedArticles[0].domain,
+        type: sortedArticles[0].source_type,
+        confidence: sortedArticles[0].confidence as any,
+        score: 0.86,
+        timestamp: sortedArticles[0].timestamp,
+        isOrigin: true
+      },
+      layers: [
+        sortedArticles.slice(1, 3).map(article => ({
+          id: article.id,
+          title: article.title,
+          domain: article.domain,
+          type: article.source_type,
+          confidence: article.confidence as any,
+          score: 0.7,
+          timestamp: article.timestamp
+        }))
+      ],
+      connections: []
+    };
+  }, [activeCluster]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-white to-zinc-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-zinc-600">검색 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activeCluster || clusters.length === 0) {
+    return (
+      <TooltipProvider>
+        <div className="min-h-screen bg-gradient-to-b from-white to-zinc-50">
+          <HeaderBar onSearch={() => {}} />
+          <div className="flex items-center justify-center h-[80vh]">
+            <div className="text-center">
+              <p className="text-xl text-zinc-600 mb-2">현재 데이터를 불러올 수 없습니다</p>
+              <p className="text-sm text-zinc-500">백엔드 서버를 확인하거나 다른 검색어를 시도해보세요.</p>
+            </div>
+          </div>
+        </div>
+      </TooltipProvider>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -274,7 +278,7 @@ export default function SearchPage() {
         <HeaderBar onSearch={() => {}} />
         <main className="max-w-7xl mx-auto px-4 py-4 grid grid-cols-12 gap-4">
           <section className="col-span-12 md:col-span-3">
-            <ClusterList clusters={MOCK_CLUSTERS} onPick={setActive} activeId={active} />
+            <ClusterList clusters={clusters} onPick={setActive} activeId={active} />
           </section>
 
           <section className="col-span-12 md:col-span-6">
@@ -282,8 +286,8 @@ export default function SearchPage() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-base">{activeCluster.label}</CardTitle>
-                    <div className="text-xs text-zinc-500">발원 후보 Top3 · 건수 {activeCluster.size}</div>
+                    <CardTitle className="text-base">{activeCluster?.label || '검색 결과'}</CardTitle>
+                    <div className="text-xs text-zinc-500">발원 후보 Top3 · 건수 {activeCluster?.size || 0}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" className="gap-1"><Save className="h-4 w-4"/>케이스북 저장</Button>
@@ -299,14 +303,20 @@ export default function SearchPage() {
                   </TabsList>
                   <div className="mt-4"/>
                   <TabsContent value="timeline">
-                    <TimelineView items={data.timeline} />
+                    <TimelineView items={timelineData} />
                   </TabsContent>
                   <TabsContent value="map">
-                    <NetworkFlowMap 
-                      data={data.networkFlow} 
-                      onSelect={(id) => console.log('Selected:', id)} 
-                      selectedId={data.evidence.selectedArticleId}
-                    />
+                    {networkFlowData ? (
+                      <NetworkFlowMap 
+                        data={networkFlowData} 
+                        onSelect={(id) => console.log('Selected:', id)} 
+                        selectedId={activeCluster?.articles?.[0]?.id || ''}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-64">
+                        <p className="text-zinc-500">전파 경로 데이터가 없습니다.</p>
+                      </div>
+                    )}
                   </TabsContent>
                 </Tabs>
               </CardContent>
@@ -314,7 +324,16 @@ export default function SearchPage() {
           </section>
 
           <section className="col-span-12 md:col-span-3">
-            <EnhancedEvidencePanel ev={data.evidence} />
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">증거 분석</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center text-zinc-500 py-8">
+                  증거 데이터가 없습니다.
+                </div>
+              </CardContent>
+            </Card>
           </section>
         </main>
       </div>
