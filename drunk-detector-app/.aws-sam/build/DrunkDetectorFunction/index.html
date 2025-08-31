@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>술친구 AI - 취한 정도 측정기</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .container { 
+            max-width: 400px; 
+            width: 100%; 
+            background: white; 
+            border-radius: 20px; 
+            padding: 30px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 { text-align: center; color: #333; margin-bottom: 30px; }
+        .camera-container { 
+            position: relative; 
+            width: 100%; 
+            aspect-ratio: 1;
+            border-radius: 15px; 
+            overflow: hidden; 
+            margin-bottom: 20px;
+            background: #f0f0f0;
+        }
+        video, canvas { width: 100%; height: 100%; object-fit: cover; }
+        .result { 
+            text-align: center; 
+            padding: 20px; 
+            background: #f8f9fa; 
+            border-radius: 10px; 
+            margin: 20px 0;
+        }
+        .score { font-size: 2em; font-weight: bold; color: #e74c3c; }
+        button { 
+            width: 100%; 
+            padding: 15px; 
+            background: #667eea; 
+            color: white; 
+            border: none; 
+            border-radius: 10px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            margin: 10px 0;
+        }
+        button:hover { background: #5a6fd8; }
+        .loading { display: none; text-align: center; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍺 술친구 AI</h1>
+        
+        <div class="camera-container">
+            <video id="video" autoplay muted playsinline></video>
+            <canvas id="canvas" style="display: none;"></canvas>
+        </div>
+        
+        <button onclick="capturePhoto()">📸 취한 정도 측정하기</button>
+        
+        <div class="loading" id="loading">분석 중... 🤖</div>
+        
+        <div class="result" id="result" style="display: none;">
+            <div class="score" id="score">0%</div>
+            <p id="message">측정 결과가 여기에 표시됩니다</p>
+        </div>
+        
+        <button onclick="shareResult()" style="display: none;" id="shareBtn">📱 결과 공유하기</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Globals:
+  Api:
+    Cors:
+      AllowMethods: '''*'''
+      AllowHeaders: '''*'''
+      AllowOrigin: '''*'''
+Resources:
+  DrunkDetectorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: DrunkDetectorFunction
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.10
+      Timeout: 30
+      Policies:
+      - RekognitionDetectOnlyPolicy: {}
+      Events:
+        PostApi:
+          Type: Api
+          Properties:
+            Path: /analyze
+            Method: post
+        GetApi:
+          Type: Api
+          Properties:
+            Path: /analyze
+            Method: get
+    Metadata:
+      SamResourceId: DrunkDetectorFunction
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value:
+      Fn::Sub: https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/analyze

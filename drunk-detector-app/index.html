@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍺 술친구 AI - 취한 정도 측정</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 배경 파티클 효과 -->
+    <div id="particles"></div>
+    
+    <div class="container">
+        <h1>🍺 술친구 AI</h1>
+        
+        <div class="video-container">
+            <video id="video" autoplay muted playsinline></video>
+            <canvas id="canvas"></canvas>
+        </div>
+        
+        <button class="neon-btn" onclick="capturePhoto()">
+            📸 취한 정도 측정하기
+        </button>
+        
+        <div class="loading" id="loading" style="display: none;"></div>
+        
+        <div class="result-card" id="result" style="display: none;">
+            <div class="drunk-emoji" id="emoji">🤔</div>
+            <div class="drunk-level" id="score">0%</div>
+            <div class="drunk-message" id="message">측정 결과가 여기에 표시됩니다</div>
+        </div>
+        
+        <div class="button-group">
+            <button class="neon-btn" onclick="shareResult()" style="display: none;" id="shareBtn">
+                📱 테스트 공유하기
+            </button>
+            
+            <button class="neon-btn" onclick="callKakaoT()" style="display: none; background: #FEE500; color: #000;" id="kakaoBtn">
+                🚗 카카오T 대리운전
+            </button>
+        </div>
+        
+        <div class="disclaimer">
+            ⚠️ 이 테스트는 재미를 위한 것으로 정확하지 않습니다.<br>
+            실제 음주 측정이나 의학적 진단 용도가 아닙니다.
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
